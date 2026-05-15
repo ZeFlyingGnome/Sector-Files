@@ -1,0 +1,25 @@
+DisplayTypeName:CoFrance radar display
+DisplayTypeNeedRadarContent:0
+DisplayTypeGeoReferenced:1
+SECTORFILE:
+SECTORTITLE:
+SHOWC:1
+SHOWSB:0
+BELOW:0
+ABOVE:0
+LEADER:5
+SHOWLEADER:0
+TURNLEADER:1
+HISTORY_DOTS:5
+SIMULATION_MODE:1
+DISABLEPANNING:0
+DISABLEZOOMING:0
+DisplayRotation:0.00000
+TAGFAMILY:CoFrance
+WINDOWAREA:45.488521:-5.701022:51.540287:11.820622
+PLUGIN:CoFrance:EnabledMaps:LFFF/0_Fake_Background,LFFF/0_Fond_Secteur,LFFF/Cartes_Dynamiques,LFFF/Limites_EGA,LFFF/Trajectoires_UIR,LFXX/Coastlines_black
+PLUGIN:CoFrance:LowerAlt:0
+PLUGIN:CoFrance:LowerAltEnabled:1
+PLUGIN:CoFrance:TagFormat:default
+PLUGIN:CoFrance:UpperAlt:660
+PLUGIN:CoFrance:UpperAltEnabled:1
