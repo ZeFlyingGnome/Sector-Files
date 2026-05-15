@@ -26,7 +26,18 @@ COPYRIGHT_FILE = "aeronav_copyright.txt"
 
 def matches(path: Path, patterns: list[str]) -> bool:
     normalized = path.as_posix()
-    return any(fnmatch.fnmatch(normalized, pattern) for pattern in patterns)
+
+    for pattern in patterns:
+        if fnmatch.fnmatch(normalized, pattern):
+            return True
+
+        # Protect folders when the pattern protects their contents.
+        if pattern.endswith("/*"):
+            folder_pattern = pattern[:-2]
+            if normalized == folder_pattern:
+                return True
+
+    return False
 
 
 def get_github_version() -> str:
