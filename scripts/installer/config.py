@@ -18,6 +18,12 @@ GNG_ONLY_FILES = [
     # Alias comes from GNG.
     "LFXX/Alias",
     "LFXX/Alias/*",
+    
+    # LFXX generated/navdata files from GNG.
+    "LFXX/ICAO",
+    "LFXX/ICAO/*",
+    "LFXX/NavData",
+    "LFXX/NavData/*",
 
     # CoFrance plugin generated files.
     "LFXX/Plugins/CoFrance",
