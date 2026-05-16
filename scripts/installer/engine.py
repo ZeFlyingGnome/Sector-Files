@@ -454,6 +454,31 @@ def cleanup_legacy_root_files(install_root: Path):
             item.unlink()
 
 
+def restore_cofrance_loader(repo_root: Path, install_root: Path):
+    source = (
+        repo_root
+        / "LFXX"
+        / "Plugins"
+        / "CoFrance"
+        / "CoFranceLoader.dll"
+    )
+
+    if not source.exists():
+        return
+
+    target = (
+        install_root
+        / "LFXX"
+        / "Plugins"
+        / "CoFrance"
+        / "CoFranceLoader.dll"
+    )
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    shutil.copy2(source, target)
+
+
 def cleanup_install(install_root: Path):
     remove_duplicate_copyright_files(install_root)
     cleanup_legacy_root_files(install_root)
@@ -481,6 +506,8 @@ def update_controller_pack(
                 backup_lfxx_settings_to_settings_backup(install_root)
 
     apply_repo_layout(repo_root, install_root)
+    
+    restore_cofrance_loader(repo_root, install_root)
 
     if gng_packages:
         apply_gng_packages(gng_packages, install_root)
