@@ -10,41 +10,62 @@ REPO_LAYOUT_MAP = {
 }
 
 GNG_ONLY_FILES = [
-    "LFXX/Sectors/*.sct",
-    "LFXX/Sectors/*.ese",
-    "LFXX/Sectors/*.rwy",
-    "LFXX/Sectors/current_airac.txt",
-    "LFXX/Sectors/Backup_AIRAC_*",
-    "LFXX/Sectors/Backup_AIRAC_*/*",
+    # Protect ALL sector files/folders from GitHub sync.
+    "LFXX/Sectors",
+    "LFXX/Sectors/*",
+    "LFXX/Sectors/*/*",
 
+    # Alias comes from GNG.
     "LFXX/Alias",
     "LFXX/Alias/*",
+    
+    # LFXX generated/navdata files from GNG.
+    "LFXX/ICAO",
     "LFXX/ICAO/*",
+    "LFXX/NavData",
     "LFXX/NavData/*",
-    "LFXX/Settings_Backups/*",
-    "LFXX/Settings_Backups/*/*",
 
+    # CoFrance plugin generated files.
+    "LFXX/Plugins/CoFrance",
+    "LFXX/Plugins/CoFrance/*",
+
+    # Settings backups.
+    "LFXX/Settings/settings_backup",
+    "LFXX/Settings/settings_backup/*",
+    "LFXX/Settings/settings_backup/*/*",
+
+    # FIR data from GNG only.
+    "LFBB/ICAO",
     "LFBB/ICAO/*",
+    "LFBB/NavData",
     "LFBB/NavData/*",
     "LFBB/Settings/LoginProfiles.txt",
     "LFBB/Settings/VoiceChannels.txt",
 
+    "LFEE/ICAO",
     "LFEE/ICAO/*",
+    "LFEE/NavData",
     "LFEE/NavData/*",
     "LFEE/Settings/LoginProfiles.txt",
     "LFEE/Settings/VoiceChannels.txt",
 
+    "LFFF/ICAO",
     "LFFF/ICAO/*",
+    "LFFF/NavData",
     "LFFF/NavData/*",
     "LFFF/Settings/LoginProfiles.txt",
     "LFFF/Settings/VoiceChannels.txt",
 
+    "LFMM/ICAO",
     "LFMM/ICAO/*",
+    "LFMM/NavData",
     "LFMM/NavData/*",
     "LFMM/Settings/LoginProfiles.txt",
     "LFMM/Settings/VoiceChannels.txt",
 
+    "LFRR/ICAO",
     "LFRR/ICAO/*",
+    "LFRR/NavData",
     "LFRR/NavData/*",
     "LFRR/Settings/LoginProfiles.txt",
     "LFRR/Settings/VoiceChannels.txt",
