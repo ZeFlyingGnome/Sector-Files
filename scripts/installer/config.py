@@ -19,6 +19,10 @@ GNG_ONLY_FILES = [
     "LFXX/Alias",
     "LFXX/Alias/*",
 
+    # CoFrance plugin generated files.
+    "LFXX/Plugins/CoFrance",
+    "LFXX/Plugins/CoFrance/*",
+
     # Settings backups.
     "LFXX/Settings/settings_backup",
     "LFXX/Settings/settings_backup/*",
