@@ -4,7 +4,13 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 
 from config import APP_NAME
-from engine import update_controller_pack, get_local_version, get_github_version
+from engine import (
+    update_controller_pack,
+    get_local_version,
+    get_github_version,
+    tool_update_available,
+    self_update_tools,
+)
 
 try:
     from build_info import BUILD_COMMIT, BUILD_BRANCH
@@ -130,6 +136,27 @@ class InstallerApp:
         self.auto_detect_start_directory()
         self.refresh_versions()
         self.refresh_action_button()
+        self.check_tool_update_on_startup()
+
+    def check_tool_update_on_startup(self):
+        try:
+            available, latest_tag = tool_update_available()
+
+            if not available:
+                return
+
+            should_update = messagebox.askyesno(
+                "Installer update available",
+                f"A newer installer release is available: {latest_tag}\n\n"
+                "Do you want to update ControllerPackInstaller.exe and ProfileConfigurator.exe now?",
+            )
+
+            if should_update:
+                current_dir = get_start_directory()
+                self_update_tools(current_dir)
+
+        except Exception as error:
+            print(f"Tool update check failed: {error}")
 
     def auto_detect_start_directory(self):
         start_dir = get_start_directory()
@@ -246,7 +273,7 @@ class InstallerApp:
             "The update will modify files inside LFXX/Settings.\n\n"
             "No previous settings backup was detected in:\n"
             "LFXX/Settings/settings_backup\n\n"
-            "Do you want the installer to create a backup before continuing?"
+            "Do you want the installer to create a backup before continuing?",
         )
 
     def run_update(self):

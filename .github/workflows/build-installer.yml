@@ -32,7 +32,7 @@ jobs:
       - name: Build Installer EXE
         working-directory: scripts/installer
         run: |
-          pyinstaller --onefile --noupx --windowed --icon ProfileConfigurator.ico --add-data "ProfileConfigurator.ico;." --version-file version_info.txt --name "Installer" app.py
+          pyinstaller --onefile --noupx --windowed --icon ProfileConfigurator.ico --add-data "ProfileConfigurator.ico;." --version-file version_info.txt --name "ControllerPackInstaller" app.py
 
       - uses: actions/upload-artifact@v4
         with:

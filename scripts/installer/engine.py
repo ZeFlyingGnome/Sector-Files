@@ -4,6 +4,8 @@ import filecmp
 import fnmatch
 import re
 import shutil
+import subprocess
+import sys
 import tempfile
 import zipfile
 
@@ -18,7 +20,14 @@ from config import (
     GITHUB_REPO,
     GITHUB_BRANCH,
     VERSION_FILE,
+    GITHUB_RELEASE_OWNER,
+    GITHUB_RELEASE_REPO,
 )
+
+try:
+    from build_info import BUILD_TAG
+except Exception:
+    BUILD_TAG = "dev"
 
 
 COPYRIGHT_FILE = "aeronav_copyright.txt"
@@ -77,6 +86,101 @@ def download_github_repo() -> Path:
         archive.extractall(extract_dir)
 
     return next(path for path in extract_dir.iterdir() if path.is_dir())
+
+
+def get_latest_release_info() -> dict | None:
+    url = f"https://api.github.com/repos/{GITHUB_RELEASE_OWNER}/{GITHUB_RELEASE_REPO}/releases/latest"
+
+    response = requests.get(url, timeout=30)
+
+    if response.status_code == 404:
+        return None
+
+    response.raise_for_status()
+    return response.json()
+
+
+def tool_update_available() -> tuple[bool, str]:
+    release = get_latest_release_info()
+
+    if not release:
+        return False, "No release found"
+
+    latest_tag = release.get("tag_name", "")
+
+    if not latest_tag:
+        return False, "No release tag found"
+
+    if BUILD_TAG in ["dev", "local", ""]:
+        return True, latest_tag
+
+    return latest_tag != BUILD_TAG, latest_tag
+
+
+def download_release_asset(asset_name: str, destination: Path) -> bool:
+    release = get_latest_release_info()
+
+    if not release:
+        return False
+
+    for asset in release.get("assets", []):
+        if asset.get("name") == asset_name:
+            url = asset.get("browser_download_url")
+            response = requests.get(url, timeout=120)
+            response.raise_for_status()
+            destination.write_bytes(response.content)
+            return True
+
+    return False
+
+
+def self_update_tools(current_dir: Path):
+    temp_dir = current_dir / "_tool_update"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    installer_new = temp_dir / "ControllerPackInstaller.exe"
+    profile_new = temp_dir / "ProfileConfigurator.exe"
+
+    downloaded_installer = download_release_asset("ControllerPackInstaller.exe", installer_new)
+    downloaded_profile = download_release_asset("ProfileConfigurator.exe", profile_new)
+
+    if not downloaded_installer and not downloaded_profile:
+        raise RuntimeError(
+            "No ControllerPackInstaller.exe or ProfileConfigurator.exe assets found in the latest release."
+        )
+
+    bat_path = temp_dir / "apply_update.bat"
+
+    current_installer = current_dir / "ControllerPackInstaller.exe"
+    current_profile = current_dir / "ProfileConfigurator.exe"
+
+    commands = [
+        "@echo off",
+        "timeout /t 2 /nobreak >nul",
+    ]
+
+    if downloaded_installer:
+        commands.append(f'copy /Y "{installer_new}" "{current_installer}"')
+
+    if downloaded_profile:
+        commands.append(f'copy /Y "{profile_new}" "{current_profile}"')
+
+    commands.extend(
+        [
+            f'start "" "{current_installer}"',
+            f'rmdir /S /Q "{temp_dir}"',
+            "exit",
+        ]
+    )
+
+    bat_path.write_text("\n".join(commands), encoding="utf-8")
+
+    subprocess.Popen(
+        ["cmd", "/c", str(bat_path)],
+        creationflags=subprocess.CREATE_NEW_CONSOLE,
+    )
+
+    sys.exit(0)
 
 
 def extract_archive(archive: Path, destination: Path) -> Path:
@@ -145,6 +249,17 @@ def apply_repo_layout(repo_root: Path, install_root: Path):
             )
 
 
+def restore_cofrance_loader(repo_root: Path, install_root: Path):
+    source = repo_root / "LFXX" / "Plugins" / "CoFrance" / "CoFranceLoader.dll"
+
+    if not source.exists():
+        return
+
+    target = install_root / "LFXX" / "Plugins" / "CoFrance" / "CoFranceLoader.dll"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source, target)
+
+
 def detect_sector_code(filename: str) -> str | None:
     upper = filename.upper()
 
@@ -174,6 +289,7 @@ def get_existing_airac_cycle(install_root: Path) -> str:
 
     if marker.exists():
         value = marker.read_text(encoding="utf-8", errors="ignore").strip()
+
         if value:
             return value
 
@@ -185,6 +301,7 @@ def get_existing_airac_cycle(install_root: Path) -> str:
                 continue
 
             cycle = extract_airac_cycle_from_name(file.name)
+
             if cycle:
                 return cycle
 
@@ -202,7 +319,8 @@ def backup_existing_sector_files_for_previous_airac(install_root: Path):
     sector_dir.mkdir(parents=True, exist_ok=True)
 
     existing_files = [
-        file for file in sector_dir.iterdir()
+        file
+        for file in sector_dir.iterdir()
         if file.is_file() and file.suffix.lower() in [".sct", ".ese"]
     ]
 
@@ -240,6 +358,7 @@ def gng_contains_sector_update(extracted_gng_root: Path) -> tuple[bool, str | No
             continue
 
         cycle = extract_airac_cycle_from_name(file.name)
+
         if cycle:
             new_cycle = cycle
 
@@ -250,6 +369,7 @@ def gng_contains_sector_update(extracted_gng_root: Path) -> tuple[bool, str | No
 
 def settings_backup_already_exists(install_root: Path) -> bool:
     backup_dir = install_root / "LFXX" / "Settings" / "settings_backup"
+
     return backup_dir.exists() and any(backup_dir.iterdir())
 
 
@@ -371,6 +491,7 @@ def apply_gng_packages(packages: list[Path], install_root: Path):
 
                 if code:
                     cycle = extract_airac_cycle_from_name(file.name)
+
                     if cycle:
                         new_airac_cycle = cycle
 
@@ -431,6 +552,7 @@ def normalize_sectors(install_root: Path):
         if file.resolve() != target.resolve():
             if target.exists():
                 target.unlink()
+
             file.rename(target)
 
 
@@ -438,13 +560,14 @@ def cleanup_legacy_root_files(install_root: Path):
     allowed_root_files = {
         "aeronav_copyright.txt",
         "ProfileConfigurator.exe",
-        "Installer.exe",
+        "ControllerPackInstaller.exe",
     }
 
     for item in install_root.iterdir():
         if item.is_dir():
             if item.name.upper() == "EXE":
                 shutil.rmtree(item, ignore_errors=True)
+
             continue
 
         if item.name in allowed_root_files:
@@ -452,31 +575,6 @@ def cleanup_legacy_root_files(install_root: Path):
 
         if item.suffix.lower() in [".sct", ".ese", ".rwy", ".prf"]:
             item.unlink()
-
-
-def restore_cofrance_loader(repo_root: Path, install_root: Path):
-    source = (
-        repo_root
-        / "LFXX"
-        / "Plugins"
-        / "CoFrance"
-        / "CoFranceLoader.dll"
-    )
-
-    if not source.exists():
-        return
-
-    target = (
-        install_root
-        / "LFXX"
-        / "Plugins"
-        / "CoFrance"
-        / "CoFranceLoader.dll"
-    )
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-
-    shutil.copy2(source, target)
 
 
 def cleanup_install(install_root: Path):
@@ -506,7 +604,7 @@ def update_controller_pack(
                 backup_lfxx_settings_to_settings_backup(install_root)
 
     apply_repo_layout(repo_root, install_root)
-    
+
     restore_cofrance_loader(repo_root, install_root)
 
     if gng_packages:
@@ -514,4 +612,5 @@ def update_controller_pack(
 
     normalize_sectors(install_root)
     cleanup_install(install_root)
+
     write_installed_version(install_root, github_version)
