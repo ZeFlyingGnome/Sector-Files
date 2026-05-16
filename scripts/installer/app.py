@@ -21,6 +21,7 @@ GRAY = "#777777"
 def resource_path(relative_path: str) -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys._MEIPASS) / relative_path
+
     return Path(__file__).resolve().parent / relative_path
 
 
@@ -239,6 +240,14 @@ class InstallerApp:
         self.gng_packages = [Path(file) for file in files]
         self.refresh_action_button()
 
+    def ask_backup_settings(self) -> bool:
+        return messagebox.askyesno(
+            "Backup settings?",
+            "The update will modify files inside LFXX/Settings.\n\n"
+            "No previous settings backup was detected in:\n"
+            "LFXX/Settings/settings_backup\n\n"
+            "Do you want the installer to create a backup before continuing?"
+        )
 
     def run_update(self):
         if not self.install_dir.get():
@@ -258,6 +267,7 @@ class InstallerApp:
             update_controller_pack(
                 install_root=install_root,
                 gng_packages=self.gng_packages,
+                backup_settings_callback=self.ask_backup_settings,
             )
 
             self.refresh_versions()
