@@ -201,37 +201,48 @@ def extract_archive(archive: Path, destination: Path) -> Path:
     return output
 
 
-def sync_tree(src: Path, dst: Path, dst_prefix: Path, exclude: list[str] | None = None):
+def sync_tree(
+    src: Path,
+    dst: Path,
+    dst_prefix: Path,
+    exclude: list[str] | None = None,
+):
+    """
+    Safe overlay sync.
+
+    Copies official GitHub-managed files into the installed controller pack
+    WITHOUT deleting unrelated local files/folders.
+
+    Preserves:
+    - custom plugins
+    - custom ASRs
+    - custom settings
+    - user-added folders/files
+
+    Official files with matching paths are updated/replaced.
+    """
+
     dst.mkdir(parents=True, exist_ok=True)
-
-    for existing in sorted(dst.rglob("*"), reverse=True):
-        rel = existing.relative_to(dst)
-        full_rel = dst_prefix / rel
-
-        if exclude and matches(full_rel, exclude):
-            continue
-
-        if not (src / rel).exists():
-            if existing.is_dir():
-                shutil.rmtree(existing, ignore_errors=True)
-            else:
-                existing.unlink()
 
     for file in src.rglob("*"):
         if not file.is_file():
             continue
 
+        # Skip duplicate Aeronav copyright files.
         if file.name.lower() == COPYRIGHT_FILE:
             continue
 
         rel = file.relative_to(src)
         full_rel = dst_prefix / rel
 
+        # Skip protected/GNG-managed paths.
         if exclude and matches(full_rel, exclude):
             continue
 
         target = dst / rel
         target.parent.mkdir(parents=True, exist_ok=True)
+
+        # Overlay/replace official file only.
         shutil.copy2(file, target)
 
 
