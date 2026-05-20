@@ -68,6 +68,19 @@ def is_euroscope_rpc_line(line: str) -> bool:
     return "lfxx\\plugins\\euroscoperpc\\euroscoperpc.dll" in normalized
 
 
+def extract_plugin_lines_from_prf(path: Path) -> list[str]:
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    except Exception:
+        return []
+
+    return [
+        line if line.endswith(("\n", "\r")) else line + "\n"
+        for line in lines
+        if line.strip().startswith("Plugins\tPlugin")
+    ]
+
+
 def ensure_rpc_plugin(lines: list[str]) -> list[str]:
     for line in lines:
         if is_euroscope_rpc_line(line):
@@ -98,6 +111,8 @@ def patch_prf_file(path: Path, details: dict) -> bool:
     lines = original.splitlines(keepends=True)
     output = []
 
+    example_plugin_lines = details.get("example_plugin_lines", [])
+
     found_realname = False
     found_certificate = False
     found_rating = False
@@ -105,6 +120,9 @@ def patch_prf_file(path: Path, details: dict) -> bool:
 
     for line in lines:
         stripped = line.rstrip("\r\n")
+
+        if stripped.startswith("Plugins\tPlugin") and example_plugin_lines:
+            continue
 
         if is_euroscope_rpc_line(stripped):
             if not details["enable_rpc"]:
@@ -147,6 +165,11 @@ def patch_prf_file(path: Path, details: dict) -> bool:
     if not found_password:
         output.append(f"LastSession\tpassword\t{details['password']}\n")
 
+    if example_plugin_lines:
+        if output and not output[-1].endswith(("\n", "\r")):
+            output[-1] += "\n"
+        output.extend(example_plugin_lines)
+
     if details["enable_rpc"]:
         output = ensure_rpc_plugin(output)
 
@@ -183,12 +206,17 @@ class ProfileConfiguratorApp:
         if icon_path.exists():
             self.root.iconbitmap(str(icon_path))
 
-        self.root.geometry("720x620")
+        self.root.geometry("740x700")
         self.root.resizable(False, False)
 
         self.controller_pack_dir = tk.StringVar()
         self.status_text = tk.StringVar(value="No controller pack directory selected")
         self.prf_count_text = tk.StringVar(value="Profiles detected: 0")
+        self.example_prf_text = tk.StringVar(
+            value="Optional — no example PRF selected, plugin lines will not be copied"
+        )
+
+        self.example_prf: Path | None = None
 
         self.name_var = tk.StringVar()
         self.cid_var = tk.StringVar()
@@ -206,9 +234,10 @@ class ProfileConfiguratorApp:
             root,
             text=(
                 "Update EuroScope login details, rating, EuroScopeRPC settings, "
-                "and LoginProfiles feedback links for your controller pack."
+                "LoginProfiles feedback links, and optionally copy plugin lines "
+                "from an example PRF."
             ),
-            wraplength=660,
+            wraplength=680,
         ).pack(pady=4)
 
         tk.Button(
@@ -221,7 +250,21 @@ class ProfileConfiguratorApp:
         tk.Label(
             root,
             textvariable=self.controller_pack_dir,
-            wraplength=660,
+            wraplength=680,
+            fg="gray",
+        ).pack()
+
+        tk.Button(
+            root,
+            text="Optional: Copy Plugin Lines from Example PRF",
+            command=self.select_example_prf,
+            height=2,
+        ).pack(fill="x", padx=40, pady=8)
+
+        tk.Label(
+            root,
+            textvariable=self.example_prf_text,
+            wraplength=680,
             fg="gray",
         ).pack()
 
@@ -274,7 +317,7 @@ class ProfileConfiguratorApp:
             root,
             textvariable=self.status_text,
             fg="gray",
-            wraplength=660,
+            wraplength=680,
         ).pack()
 
         tk.Label(
@@ -308,7 +351,7 @@ class ProfileConfiguratorApp:
             return
 
         if not looks_like_controller_pack(path):
-            self.status_text.set("Selected folder does not look like a CoFrance Controller Pack")
+            self.status_text.set("Selected folder does not look like the Controller pack")
             self.action_button.config(bg=AMBER)
         else:
             self.status_text.set("Ready")
@@ -326,6 +369,22 @@ class ProfileConfiguratorApp:
         if folder:
             self.controller_pack_dir.set(folder)
             self.refresh_status()
+
+    def select_example_prf(self):
+        file = filedialog.askopenfilename(
+            title="Select example PRF",
+            filetypes=[
+                ("EuroScope Profile", "*.prf"),
+                ("All files", "*.*"),
+            ],
+        )
+
+        if file:
+            self.example_prf = Path(file)
+            plugin_count = len(extract_plugin_lines_from_prf(self.example_prf))
+            self.example_prf_text.set(
+                f"{self.example_prf} — {plugin_count} plugin line(s) detected"
+            )
 
     def validate_inputs(self):
         if not self.name_var.get().strip():
@@ -350,12 +409,18 @@ class ProfileConfiguratorApp:
             self.root.config(cursor="wait")
             self.root.update_idletasks()
 
+            example_plugin_lines = []
+
+            if self.example_prf:
+                example_plugin_lines = extract_plugin_lines_from_prf(self.example_prf)
+
             details = {
                 "name": self.name_var.get().strip(),
                 "cid": self.cid_var.get().strip(),
                 "password": self.password_var.get(),
                 "rating": rating_to_euroscope_value(self.rating_var.get()),
                 "enable_rpc": self.rpc_var.get(),
+                "example_plugin_lines": example_plugin_lines,
             }
 
             controller_pack_dir = Path(self.controller_pack_dir.get())
@@ -382,7 +447,8 @@ class ProfileConfiguratorApp:
                 f"PRFs found: {len(prf_files)}\n"
                 f"PRFs modified: {prf_changed}\n"
                 f"LoginProfiles found: {len(login_profiles_files)}\n"
-                f"LoginProfiles modified: {login_profiles_changed}",
+                f"LoginProfiles modified: {login_profiles_changed}\n"
+                f"Plugin lines copied: {len(example_plugin_lines)}",
             )
 
         except Exception as error:
