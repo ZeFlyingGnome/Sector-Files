@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Loader2,
   Package,
+  RefreshCw,
   Save,
   X,
 } from "lucide-react";
@@ -116,6 +117,31 @@ export default function App() {
     }
   }, [profile, packages]);
 
+  const refreshFromGithub = useCallback(async () => {
+    if (!profile?.controller_pack_dir) {
+      toast.error("Set the controller pack directory first.");
+      return;
+    }
+    setBusy(true);
+    toast.loading("Updating files from GitHub…", { id: "sync" });
+    try {
+      const summary: SyncSummary = await api.updateFromGithub();
+      if (summary.warnings.length) {
+        console.warn(`Update warnings (${summary.warnings.length}):\n` + summary.warnings.join("\n"));
+      }
+      toast.success(`Updated — ${summary.files_written} file(s) written`, {
+        id: "sync",
+        description: summary.warnings.length ? `${summary.warnings.length} warning(s)` : undefined,
+      });
+      setProfile(await api.getProfile());
+      api.checkUpdates().then(setUpdateStatus).catch(() => {});
+    } catch (e) {
+      toast.error("Update failed", { id: "sync", description: String(e) });
+    } finally {
+      setBusy(false);
+    }
+  }, [profile]);
+
   if (!profile) {
     return (
       <div className="flex h-screen items-center justify-center text-neutral-400">
@@ -152,6 +178,7 @@ export default function App() {
               onAddPackages={addPackages}
               onRemovePackage={removePackage}
               onRun={runSync}
+              onRefreshGithub={refreshFromGithub}
             />
           </TabsContent>
           <TabsContent value="profile">
@@ -184,6 +211,7 @@ function SyncPanel({
   onAddPackages,
   onRemovePackage,
   onRun,
+  onRefreshGithub,
 }: {
   profile: Profile;
   packages: string[];
@@ -192,6 +220,7 @@ function SyncPanel({
   onAddPackages: () => void;
   onRemovePackage: (p: string) => void;
   onRun: () => void;
+  onRefreshGithub: () => void;
 }) {
   return (
     <div className="space-y-6">
@@ -261,10 +290,20 @@ function SyncPanel({
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {busy ? "Installing…" : "Install / update"}
         </Button>
+        <Button
+          variant="outline"
+          onClick={onRefreshGithub}
+          disabled={busy || !profile.controller_pack_dir}
+        >
+          <RefreshCw className="h-4 w-4" /> Update GitHub files only
+        </Button>
         <p className="flex items-start gap-2 text-xs text-neutral-500">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          Pulls the latest configuration from GitHub, merges the selected AIRAC packages, and applies
-          your profile if configured.
+          <span>
+            <strong>Install / update</strong> merges the selected AIRAC packages with the latest
+            GitHub configuration. <strong>Update GitHub files only</strong> refreshes the
+            GitHub-managed files for the FIRs you already have installed — no packages needed.
+          </span>
         </p>
       </div>
     </div>

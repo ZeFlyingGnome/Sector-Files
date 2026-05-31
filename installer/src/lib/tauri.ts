@@ -67,6 +67,8 @@ export const api = {
     invoke<boolean>("looks_like_controller_pack", { path }),
   runSync: (packagePaths: string[], alsoApplyProfile?: boolean) =>
     invoke<SyncSummary>("run_sync", { packagePaths, alsoApplyProfile }),
+  updateFromGithub: (alsoApplyProfile?: boolean) =>
+    invoke<SyncSummary>("update_from_github", { alsoApplyProfile }),
   applyProfileToPack: (installRoot: string) =>
     invoke<number>("apply_profile_to_pack", { installRoot }),
   importPluginLines: (installRoot: string, examplePrf: string) =>
