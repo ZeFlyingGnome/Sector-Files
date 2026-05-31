@@ -79,8 +79,10 @@ pub const LFFM_CODE: &str = "LFFM";
 /// How the set of areas (FIR folders + LFFM) to install is determined.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum AreaSource {
-    /// Areas come from the selected packages; folders for areas *not* covered by
-    /// a package are removed from the install root. Used for a full install/update.
+    /// Areas come from the selected packages. The packages scope which FIR
+    /// folders get (re)written; folders already on disk for areas *not* in the
+    /// selection are left untouched (never removed). Used for a full
+    /// install/update.
     #[default]
     Packages,
     /// Areas are whatever is already present in the install root, and nothing is
@@ -190,24 +192,16 @@ pub fn plan(inputs: PlanInputs<'_>) -> anyhow::Result<SyncPlan> {
         AreaSource::InstalledOnly => detect_installed_areas_on_disk(inputs.install_root),
     };
 
-    // 0) Remove top-level folders for uncovered areas — only when (re)scoping
-    //    from packages. A GitHub-only refresh never removes anything.
-    if inputs.area_source == AreaSource::Packages {
-        for fir in FirCode::ALL {
-            if !installed_firs.contains(&fir) {
-                let dir = inputs.install_root.join(fir.as_str());
-                if dir.is_dir() {
-                    plan.ops.push(FileOp::DeleteLegacy { path: dir });
-                }
-            }
-        }
-        if !install_lffm {
-            let lffm_dir = inputs.install_root.join(LFFM_CODE);
-            if lffm_dir.is_dir() {
-                plan.ops.push(FileOp::DeleteLegacy { path: lffm_dir });
-            }
-        }
-    }
+    // 0) A full install never deletes top-level FIR folders. The selected
+    //    packages only *scope* which folders get (re)written below — they do not
+    //    prune anything. A folder already on disk for an area not in this run's
+    //    selection was put there by a previous install; the user simply not
+    //    re-picking its package this time must not destroy their working setup
+    //    (their ASRs, custom files, credentials, etc.). Deleting was only ever
+    //    safe on a first-time install, where nothing exists to lose — so we drop
+    //    it entirely and leave uncovered areas untouched. (`installed_firs` /
+    //    `install_lffm` still gate the GitHub overlay below.) A GitHub-only
+    //    refresh likewise removes nothing.
 
     // 1) Back up the current LFXX/Settings, then lay down the GitHub overlay
     //    (which re-downloads and would otherwise overwrite those settings).

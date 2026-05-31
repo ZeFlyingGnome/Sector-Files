@@ -221,13 +221,15 @@ fn second_run_is_a_no_op() {
 }
 
 #[test]
-fn folders_without_a_package_are_removed_including_lffm() {
+fn preexisting_folders_without_a_package_are_kept() {
     let (_gh_tmp, github_root) = build_fake_github_repo();
     let (_gng_tmp, gng_root) = build_fake_gng_package(); // covers LFBB + LFFF only
     let install_tmp = TempDir::new().unwrap();
     let install_root = install_tmp.path();
 
-    // Pre-existing folders for an uncovered FIR and the secret area.
+    // Pre-existing folders for an uncovered FIR and the secret area: a previous
+    // install the user is NOT re-selecting this run. They must survive untouched
+    // — not re-picking a package must never destroy an existing install.
     write_file(install_root, "LFEE/ASR/old.asr", "stale\n");
     write_file(install_root, "LFFM/old.txt", "stale secret\n");
 
@@ -246,8 +248,16 @@ fn folders_without_a_package_are_removed_including_lffm() {
     .unwrap();
 
     let files = list_files(install_root);
-    assert!(!files.iter().any(|f| f.starts_with("LFEE/")), "LFEE not removed: {files:#?}");
-    assert!(!files.iter().any(|f| f.starts_with("LFFM/")), "LFFM not removed: {files:#?}");
+    // The uncovered, previously-installed folders are preserved as-is...
+    assert!(
+        files.contains(&"LFEE/ASR/old.asr".to_string()),
+        "LFEE wrongly removed: {files:#?}"
+    );
+    assert!(
+        files.contains(&"LFFM/old.txt".to_string()),
+        "LFFM wrongly removed: {files:#?}"
+    );
+    // ...and the selected package's FIR is installed alongside them.
     assert!(files.contains(&"LFBB/ASR/Tower.asr".to_string()));
 }
 
