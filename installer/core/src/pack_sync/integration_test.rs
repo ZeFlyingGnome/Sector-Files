@@ -71,6 +71,8 @@ fn build_fake_gng_package() -> (TempDir, PathBuf) {
     write_file(&root, "LFBB-Bordeaux-260301-0003.rwy", "rwy content\n");
     write_file(&root, "LFBB/ICAO/airports.txt", "gng airports\n");
     write_file(&root, "LFBB/NavData/airways.txt", "navdata\n");
+    // The one Settings file the package owns; the rest of Settings is GitHub's.
+    write_file(&root, "LFBB/Settings/VoiceChannels.txt", "gng voice channels\n");
     write_file(&root, "LFFF/EGA Paris.prf", "zip prf — must be ignored\n");
     write_file(&root, "LFBB/aeronav_copyright.txt", "zip copyright — must be ignored\n");
 
@@ -142,6 +144,15 @@ fn end_to_end_sync_produces_expected_layout() {
     // .rwy is kept from the package, paired with the sector dir.
     let rwy = fs::read_to_string(install_root.join("LFXX/Sectors/LFBB.rwy")).unwrap();
     assert_eq!(rwy.trim(), "rwy content");
+
+    // VoiceChannels.txt is the one package-owned Settings file: it lands in the
+    // FIR's own Settings folder and is NOT mirrored into LFXX.
+    let voice = fs::read_to_string(install_root.join("LFBB/Settings/VoiceChannels.txt")).unwrap();
+    assert_eq!(voice.trim(), "gng voice channels");
+    assert!(
+        !files.contains(&"LFXX/Settings/VoiceChannels.txt".to_string()),
+        "VoiceChannels must not be mirrored into LFXX; got: {files:#?}"
+    );
 
     // GitHub overlay only for covered areas: LFBB + LFFF (package) and LFXX.
     assert!(files.contains(&"LFBB/ASR/Tower.asr".to_string()));
