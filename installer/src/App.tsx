@@ -44,6 +44,7 @@ export default function App() {
   const [updateStatus, setUpdateStatus] = useState<CheckUpdatesReport | null>(null);
   const [packages, setPackages] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     api.getProfile().then(async (p) => {
@@ -89,6 +90,20 @@ export default function App() {
     setPackages((prev) => prev.filter((p) => p !== path));
   }, []);
 
+  // Validate, then open the confirmation modal. The actual sync runs from the
+  // modal's confirm button (runSync) so the user sees what's about to happen.
+  const requestInstall = useCallback(() => {
+    if (!profile?.controller_pack_dir) {
+      toast.error("Set the controller pack directory first.");
+      return;
+    }
+    if (packages.length === 0) {
+      toast.error("Add at least one FIR package.");
+      return;
+    }
+    setConfirmOpen(true);
+  }, [profile, packages]);
+
   const runSync = useCallback(async () => {
     if (!profile?.controller_pack_dir) {
       toast.error("Set the controller pack directory first.");
@@ -98,6 +113,7 @@ export default function App() {
       toast.error("Add at least one FIR package.");
       return;
     }
+    setConfirmOpen(false);
     setBusy(true);
     try {
       const summary: SyncSummary = await api.runSync(packages);
@@ -177,7 +193,7 @@ export default function App() {
               onPickDir={pickPackDir}
               onAddPackages={addPackages}
               onRemovePackage={removePackage}
-              onRun={runSync}
+              onRun={requestInstall}
               onRefreshGithub={refreshFromGithub}
             />
           </TabsContent>
@@ -190,7 +206,122 @@ export default function App() {
         </Tabs>
       </main>
 
+      {confirmOpen && (
+        <ConfirmInstallModal
+          packages={packages}
+          installDir={profile.controller_pack_dir ?? ""}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={runSync}
+        />
+      )}
+
       <Toaster theme="dark" position="bottom-right" richColors closeButton />
+    </div>
+  );
+}
+
+function ConfirmInstallModal({
+  packages,
+  installDir,
+  onCancel,
+  onConfirm,
+}: {
+  packages: string[];
+  installDir: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onCancel}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-950 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 border-b border-neutral-800 px-5 py-4">
+          <Download className="h-5 w-5 text-brand" />
+          <h2 className="text-base font-semibold">Before you install</h2>
+        </div>
+
+        <div className="space-y-4 px-5 py-4 text-sm text-neutral-300">
+          <p>
+            This merges the <strong>{packages.length}</strong> selected AIRAC package
+            {packages.length === 1 ? "" : "s"} with the latest GitHub configuration into:
+          </p>
+          <p className="break-all rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 font-mono text-xs text-neutral-400">
+            {installDir}
+          </p>
+
+          <ModalSection title="What gets changed">
+            <ul className="list-disc space-y-1 pl-5 text-neutral-400">
+              <li>
+                GitHub-managed files (Settings, ASRs, <code>.prf</code> profiles, plugins, Alias)
+                are overwritten with the latest versions.
+              </li>
+              <li>
+                Sector files from your packages are renamed to <code>&lt;FIR&gt;.sct/.ese</code> and
+                placed in <code>LFXX/Sectors</code>; ICAO &amp; NavData are copied in.
+              </li>
+              <li>
+                Your VATSIM credentials are written into every <code>.prf</code> profile (when set).
+              </li>
+              <li>Files you added yourself that aren't part of the pack are left untouched.</li>
+            </ul>
+          </ModalSection>
+
+          <ModalSection title="Choose every package you use">
+            <p className="text-neutral-400">
+              Only the FIRs whose packages you added are installed or updated. FIRs you leave out
+              keep their current files — they are <strong>not</strong> removed, but they also won't
+              receive this AIRAC's updates. To update everything, add a package for each FIR you
+              fly.
+            </p>
+          </ModalSection>
+
+          <ModalSection title="Backups are made automatically">
+            <ul className="list-disc space-y-1 pl-5 text-neutral-400">
+              <li>
+                The previous sector files are moved to{" "}
+                <code>LFXX/Sectors/Backup/&lt;FIR&gt;-&lt;airac&gt;.sct/.ese</code>.
+              </li>
+              <li>
+                <code>LFXX/Settings</code> is snapshotted into <code>LFXX/Settings/backup</code>{" "}
+                before it is overwritten.
+              </li>
+            </ul>
+          </ModalSection>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-neutral-800 px-5 py-4">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={onConfirm}>
+            <Download className="h-4 w-4" /> Install / update
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <h3 className="font-medium text-neutral-200">{title}</h3>
+      {children}
     </div>
   );
 }
