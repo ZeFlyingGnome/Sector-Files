@@ -2,7 +2,6 @@ use crate::github;
 use crate::profile_store;
 use anyhow::Context;
 use controller_pack_core::pack_sync::{apply, plan, PlanInputs, SyncSummary};
-use controller_pack_core::FirCode;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
 
@@ -18,7 +17,6 @@ fn emit(app: &AppHandle, step: &str) {
 pub async fn run_sync(
     app: &AppHandle,
     package_paths: Vec<PathBuf>,
-    selected_firs: Vec<FirCode>,
     also_apply_profile: Option<bool>,
 ) -> anyhow::Result<SyncSummary> {
     let profile = profile_store::load(app)?;
@@ -51,11 +49,22 @@ pub async fn run_sync(
         gng_roots: &pack_roots,
         install_root: &install_root,
         github_short_sha: github_short_sha.clone(),
-        selected_firs: &selected_firs,
     })?;
 
     emit(app, "Applying changes");
     let summary = apply(&install_root, &plan_result)?;
+
+    // Diagnostic notes (files intentionally skipped) — debug only, not warnings.
+    for note in &plan_result.notes {
+        tracing::debug!("{note}");
+    }
+    // Real warnings: surface each (the summary only carries a count).
+    if !summary.warnings.is_empty() {
+        tracing::warn!(count = summary.warnings.len(), "sync produced warnings:");
+        for w in &summary.warnings {
+            tracing::warn!("  • {w}");
+        }
+    }
 
     // Update persisted versions.
     let mut updated = profile_store::load(app)?;

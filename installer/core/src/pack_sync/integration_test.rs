@@ -1,12 +1,10 @@
-//! End-to-end test for the pack_sync planner + applier.
+//! End-to-end tests for the pack_sync planner + applier.
 //!
-//! Builds a fake GitHub repo tree and a fake GNG package tree inside a
-//! tempdir, runs `plan` + `apply`, and asserts the resulting install tree
-//! matches the expected layout from proposal.md.
+//! Builds a fake GitHub repo tree and fake package tree(s) inside a tempdir,
+//! runs `plan` + `apply`, and asserts the resulting install layout.
 
 use super::plan::{plan, PlanInputs};
 use super::*;
-use crate::fir::FirCode;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -40,46 +38,36 @@ fn build_fake_github_repo() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("vaccfr-Sector-Files-abcdef1");
 
-    // Files the GitHub overlay SHOULD copy.
+    // Overlay content for several areas + the shared base.
     write_file(&root, "LFBB/ASR/Tower.asr", "asr content\n");
+    write_file(&root, "LFFF/ASR/Paris.asr", "paris asr\n");
+    write_file(&root, "LFEE/ASR/Reims.asr", "reims asr\n"); // FIR with no package
+    write_file(&root, "LFFM/Secret.txt", "tier-2 only\n"); // secret, gated on package
     write_file(&root, "LFXX/Settings/Symbology.txt", "sym\n");
     write_file(&root, "LFXX/Plugins/CCAMS/CCAMS.dll", "ccams\n");
     write_file(&root, "LFXX/Plugins/CoFrance/CoFranceLoader.dll", "loader\n");
     write_file(&root, "LFBB/aeronav_copyright.txt", "(c) AeroNav\n");
 
-    // Files the GitHub overlay SHOULD NOT copy (GNG-owned).
+    // GNG-owned paths the overlay must NOT write.
     write_file(&root, "LFXX/Sectors/STALE.txt", "ought-to-be-skipped\n");
     write_file(&root, "LFBB/ICAO/airports.txt", "GH should not write this\n");
-    write_file(
-        &root,
-        "LFXX/Plugins/CoFrance/generated_state.dat",
-        "GH should not write this\n",
-    );
+    write_file(&root, "LFXX/Plugins/CoFrance/generated_state.dat", "GH not this\n");
 
     let path = root.clone();
     (tmp, path)
 }
 
+/// A package covering LFBB (sectors + nav data) and LFFF (a `.prf`).
 fn build_fake_gng_package() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().to_path_buf();
 
-    // Sector + ese files (will be renamed to LFBB.sct / LFBB.ese).
     write_file(&root, "LFBB-Bordeaux-260301-0003.sct", "sct content\n");
     write_file(&root, "LFBB-Bordeaux-260301-0003.ese", "ese content\n");
-
-    // ICAO + NavData under LFBB.
     write_file(&root, "LFBB/ICAO/airports.txt", "gng airports\n");
     write_file(&root, "LFBB/NavData/airways.txt", "navdata\n");
-
-    // .prf at FIR root — should land in LFFF/Profiles/.
     write_file(&root, "LFFF/EGA Paris.prf", "prf content\n");
-
-    // Per-FIR copyright.
     write_file(&root, "LFBB/aeronav_copyright.txt", "(c) AeroNav\n");
-
-    // Legacy LFFM .sct — should be ignored.
-    write_file(&root, "LFFM-Base-260301-0003.sct", "should be ignored\n");
 
     (tmp, root)
 }
@@ -88,12 +76,9 @@ fn build_existing_install() -> TempDir {
     let tmp = TempDir::new().unwrap();
     let install_root = tmp.path();
 
-    // Pre-existing sector files at an older AIRAC cycle — should be moved to backup.
     write_file(install_root, "LFXX/Sectors/LFBB.sct", "old sct\n");
     write_file(install_root, "LFXX/Sectors/LFBB.ese", "old ese\n");
     write_file(install_root, "LFXX/Sectors/current_airac.txt", "2602\n");
-
-    // A user-added custom file that should NOT be touched by the overlay.
     write_file(
         install_root,
         "LFXX/Plugins/CoFrance/user_settings.dat",
@@ -109,6 +94,8 @@ fn end_to_end_sync_produces_expected_layout() {
     let (_gng_tmp, gng_root) = build_fake_gng_package();
     let install_tmp = build_existing_install();
     let install_root = install_tmp.path();
+    // Pre-existing settings that the GitHub overlay will overwrite ("sym").
+    write_file(install_root, "LFXX/Settings/Symbology.txt", "old sym\n");
 
     let gng_roots = vec![gng_root.clone()];
     let plan = plan(PlanInputs {
@@ -116,61 +103,66 @@ fn end_to_end_sync_produces_expected_layout() {
         gng_roots: &gng_roots,
         install_root,
         github_short_sha: Some("abcdef1".into()),
-        selected_firs: &FirCode::ALL,
     })
     .unwrap();
 
     let summary = apply(install_root, &plan).unwrap();
     let files = list_files(install_root);
 
-    // Sector files are at LFXX/Sectors with FIR-only names.
+    // The old settings were backed up before the overlay overwrote them.
+    let backed_up =
+        fs::read_to_string(install_root.join("LFXX/Settings/backup/Symbology.txt")).unwrap();
+    assert_eq!(backed_up.trim(), "old sym");
+    let now = fs::read_to_string(install_root.join("LFXX/Settings/Symbology.txt")).unwrap();
+    assert_eq!(now.trim(), "sym");
+
+    // Sector files at LFXX/Sectors with FIR-only names, old ones backed up.
     assert!(files.contains(&"LFXX/Sectors/LFBB.sct".to_string()));
     assert!(files.contains(&"LFXX/Sectors/LFBB.ese".to_string()));
-
-    // Old sector files were moved into LFXX/Sectors/Backup with the prev cycle suffix.
     assert!(
         files.iter().any(|f| f.starts_with("LFXX/Sectors/Backup/LFBB-2602")),
         "expected LFBB-2602 backup; got: {files:#?}"
     );
 
-    // ICAO comes from GNG, NOT from GitHub.
-    let icao_content = fs::read_to_string(install_root.join("LFBB/ICAO/airports.txt")).unwrap();
-    assert_eq!(icao_content.trim(), "gng airports");
+    // ICAO/NavData come from the package, into the FIR folder...
+    let icao = fs::read_to_string(install_root.join("LFBB/ICAO/airports.txt")).unwrap();
+    assert_eq!(icao.trim(), "gng airports");
+    // ...and are ALSO mirrored into LFXX (CoFrance reads them there).
+    let lffx_icao = fs::read_to_string(install_root.join("LFXX/ICAO/airports.txt")).unwrap();
+    assert_eq!(lffx_icao.trim(), "gng airports");
+    let lffx_nav = fs::read_to_string(install_root.join("LFXX/NavData/airways.txt")).unwrap();
+    assert_eq!(lffx_nav.trim(), "navdata");
 
-    // GitHub overlay landed where expected.
+    // GitHub overlay only for covered areas: LFBB + LFFF (package) and LFXX.
     assert!(files.contains(&"LFBB/ASR/Tower.asr".to_string()));
+    assert!(files.contains(&"LFFF/ASR/Paris.asr".to_string()));
     assert!(files.contains(&"LFXX/Settings/Symbology.txt".to_string()));
-    assert!(files.contains(&"LFXX/Plugins/CCAMS/CCAMS.dll".to_string()));
+
+    // No package for LFEE → its GitHub folder is not installed.
+    assert!(!files.iter().any(|f| f.starts_with("LFEE/")), "got: {files:#?}");
+    // No LFFM package → the secret folder is not installed.
+    assert!(!files.iter().any(|f| f.starts_with("LFFM/")), "got: {files:#?}");
 
     // CoFrance loader exception came from GitHub.
-    let loader = fs::read_to_string(install_root.join("LFXX/Plugins/CoFrance/CoFranceLoader.dll"))
-        .unwrap();
+    let loader =
+        fs::read_to_string(install_root.join("LFXX/Plugins/CoFrance/CoFranceLoader.dll")).unwrap();
     assert_eq!(loader.trim(), "loader");
 
-    // User's pre-existing CoFrance state file is untouched.
+    // Pre-existing user state untouched.
     let user_state =
         fs::read_to_string(install_root.join("LFXX/Plugins/CoFrance/user_settings.dat")).unwrap();
     assert_eq!(user_state.trim(), "user state");
 
-    // .prf was relocated into LFFF/Profiles/.
-    assert!(files.contains(&"LFFF/Profiles/EGA Paris.prf".to_string()));
+    // .prf goes to the FIR folder ROOT, not a Profiles/ subfolder.
+    assert!(files.contains(&"LFFF/EGA Paris.prf".to_string()));
+    assert!(!files.iter().any(|f| f.contains("/Profiles/")), "got: {files:#?}");
 
-    // Per-FIR copyright preserved.
+    // Per-FIR copyright preserved; markers written.
     assert!(files.contains(&"LFBB/aeronav_copyright.txt".to_string()));
-
-    // AIRAC marker updated.
     let marker = fs::read_to_string(install_root.join("LFXX/Sectors/current_airac.txt")).unwrap();
     assert_eq!(marker.trim(), "2603");
-
-    // Version marker written.
     assert!(files.contains(&".github/installer-version.txt".to_string()));
-    let sha = fs::read_to_string(install_root.join(".github/installer-version.txt")).unwrap();
-    assert_eq!(sha.trim(), "abcdef1");
 
-    // LFFM sector file from GNG was NOT written.
-    assert!(!files.iter().any(|f| f.contains("LFFM")));
-
-    // Summary reports what we did.
     assert!(summary.files_written > 0);
     assert_eq!(summary.airac_cycle.as_deref(), Some("2603"));
     assert_eq!(summary.github_sha.as_deref(), Some("abcdef1"));
@@ -182,62 +174,80 @@ fn second_run_is_a_no_op() {
     let (_gng_tmp, gng_root) = build_fake_gng_package();
     let install_tmp = build_existing_install();
     let install_root = install_tmp.path();
+    // Settings already match GitHub, so the run (incl. its settings backup)
+    // stabilises after the first apply.
+    write_file(install_root, "LFXX/Settings/Symbology.txt", "sym\n");
     let gng_roots = vec![gng_root.clone()];
 
-    let plan1 = plan(PlanInputs {
+    let inputs = || PlanInputs {
         github_root: Some(&github_root),
         gng_roots: &gng_roots,
         install_root,
         github_short_sha: Some("abcdef1".into()),
-        selected_firs: &FirCode::ALL,
-    })
-    .unwrap();
-    apply(install_root, &plan1).unwrap();
+    };
 
-    // Second run with identical inputs — should write zero files.
-    let plan2 = plan(PlanInputs {
-        github_root: Some(&github_root),
-        gng_roots: &gng_roots,
-        install_root,
-        github_short_sha: Some("abcdef1".into()),
-        selected_firs: &FirCode::ALL,
-    })
-    .unwrap();
-    let summary = apply(install_root, &plan2).unwrap();
+    apply(install_root, &plan(inputs()).unwrap()).unwrap();
+    let summary = apply(install_root, &plan(inputs()).unwrap()).unwrap();
     assert_eq!(summary.files_written, 0, "second run should be a no-op");
 }
 
 #[test]
-fn unselected_fir_folder_is_removed_and_skipped() {
+fn folders_without_a_package_are_removed_including_lffm() {
+    let (_gh_tmp, github_root) = build_fake_github_repo();
+    let (_gng_tmp, gng_root) = build_fake_gng_package(); // covers LFBB + LFFF only
+    let install_tmp = TempDir::new().unwrap();
+    let install_root = install_tmp.path();
+
+    // Pre-existing folders for an uncovered FIR and the secret area.
+    write_file(install_root, "LFEE/ASR/old.asr", "stale\n");
+    write_file(install_root, "LFFM/old.txt", "stale secret\n");
+
+    let gng_roots = vec![gng_root.clone()];
+    apply(
+        install_root,
+        &plan(PlanInputs {
+            github_root: Some(&github_root),
+            gng_roots: &gng_roots,
+            install_root,
+            github_short_sha: Some("abcdef1".into()),
+        })
+        .unwrap(),
+    )
+    .unwrap();
+
+    let files = list_files(install_root);
+    assert!(!files.iter().any(|f| f.starts_with("LFEE/")), "LFEE not removed: {files:#?}");
+    assert!(!files.iter().any(|f| f.starts_with("LFFM/")), "LFFM not removed: {files:#?}");
+    assert!(files.contains(&"LFBB/ASR/Tower.asr".to_string()));
+}
+
+#[test]
+fn lffm_is_installed_when_its_package_is_present() {
     let (_gh_tmp, github_root) = build_fake_github_repo();
     let install_tmp = TempDir::new().unwrap();
     let install_root = install_tmp.path();
 
-    // A pre-existing folder for a FIR the user will NOT select.
-    write_file(install_root, "LFBB/ASR/old.asr", "stale\n");
+    // A package that covers the secret LFFM area.
+    let pkg_tmp = TempDir::new().unwrap();
+    let pkg = pkg_tmp.path().to_path_buf();
+    write_file(&pkg, "LFFM/ICAO/airports.txt", "lffm icao\n");
 
-    // Select everything except LFBB.
-    let selected: Vec<FirCode> = FirCode::ALL
-        .into_iter()
-        .filter(|f| *f != FirCode::LFBB)
-        .collect();
-
-    let plan = plan(PlanInputs {
-        github_root: Some(&github_root),
-        gng_roots: &[],
+    let gng_roots = vec![pkg.clone()];
+    apply(
         install_root,
-        github_short_sha: Some("abcdef1".into()),
-        selected_firs: &selected,
-    })
+        &plan(PlanInputs {
+            github_root: Some(&github_root),
+            gng_roots: &gng_roots,
+            install_root,
+            github_short_sha: Some("abcdef1".into()),
+        })
+        .unwrap(),
+    )
     .unwrap();
-    apply(install_root, &plan).unwrap();
 
     let files = list_files(install_root);
-    // The unselected FIR's folder is gone, and no LFBB GitHub files were written.
     assert!(
-        !files.iter().any(|f| f.starts_with("LFBB/")),
-        "LFBB folder should have been removed/skipped; got: {files:#?}"
+        files.contains(&"LFFM/Secret.txt".to_string()),
+        "LFFM GitHub folder should be installed when its package is present; got: {files:#?}"
     );
-    // Shared LFXX content is still installed.
-    assert!(files.contains(&"LFXX/Settings/Symbology.txt".to_string()));
 }

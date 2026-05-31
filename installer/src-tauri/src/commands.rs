@@ -1,4 +1,3 @@
-use controller_pack_core::FirCode;
 use crate::profile_store::{self, Profile};
 use crate::update_check::{CheckUpdatesReport, InstallerUpdateReport};
 use controller_pack_core::pack_sync::SyncSummary;
@@ -52,10 +51,9 @@ pub fn looks_like_controller_pack(path: PathBuf) -> bool {
 pub async fn run_sync(
     app: AppHandle,
     package_paths: Vec<PathBuf>,
-    selected_firs: Vec<FirCode>,
     also_apply_profile: Option<bool>,
 ) -> Result<SyncSummary, String> {
-    crate::sync_orchestrator::run_sync(&app, package_paths, selected_firs, also_apply_profile)
+    crate::sync_orchestrator::run_sync(&app, package_paths, also_apply_profile)
         .await
         .map_err(|e| e.to_string())
 }

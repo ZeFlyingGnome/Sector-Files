@@ -1,4 +1,3 @@
-use crate::fir::FirCode;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -54,8 +53,6 @@ pub struct Preferences {
     pub auto_check_updates: bool,
     #[serde(default = "default_true")]
     pub apply_creds_after_sync: bool,
-    #[serde(default = "default_firs")]
-    pub selected_firs: Vec<FirCode>,
 }
 
 impl Default for Preferences {
@@ -63,16 +60,12 @@ impl Default for Preferences {
         Self {
             auto_check_updates: true,
             apply_creds_after_sync: true,
-            selected_firs: default_firs(),
         }
     }
 }
 
 fn default_true() -> bool {
     true
-}
-fn default_firs() -> Vec<FirCode> {
-    FirCode::ALL.to_vec()
 }
 
 #[cfg(test)]
@@ -97,7 +90,6 @@ mod tests {
         assert_eq!(back.vatsim.rating, "C1");
         assert_eq!(back.versions.installed_github_sha.as_deref(), Some("abcdef1"));
         assert!(back.preferences.auto_check_updates);
-        assert_eq!(back.preferences.selected_firs.len(), 5);
     }
 
     #[test]
@@ -109,6 +101,5 @@ mod tests {
         assert_eq!(profile.vatsim.rating, "S1");
         assert!(profile.vatsim.enable_rpc);
         assert!(profile.preferences.auto_check_updates);
-        assert_eq!(profile.preferences.selected_firs.len(), 5);
     }
 }

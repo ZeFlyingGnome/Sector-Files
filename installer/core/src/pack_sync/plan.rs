@@ -17,7 +17,7 @@ pub enum FileOp {
     BackupSector { src: PathBuf, dst: PathBuf },
     /// Write a sector file to its canonical location, renamed to <FIR>.<ext>.
     WriteSector { src: PathBuf, dst: PathBuf, fir: FirCode, ext: SectorExt },
-    /// Move a `.prf` file into the FIR's Profiles/ subdirectory.
+    /// Move a `.prf` file to the FIR folder root.
     MoveProfile { src: PathBuf, dst: PathBuf },
     /// Write/overwrite a marker text file with a given string value.
     WriteText { dst: PathBuf, value: String },
@@ -56,7 +56,11 @@ pub struct SyncPlan {
     pub detected_airac: Option<String>,
     pub previous_airac: Option<String>,
     pub github_short_sha: Option<String>,
+    /// Real, user-facing warnings (surfaced in the sync summary).
     pub warnings: Vec<String>,
+    /// Diagnostic notes for things we skipped on purpose (e.g. non-FIR sector
+    /// files). Logged for debugging but NOT shown to the user as warnings.
+    pub notes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -68,25 +72,70 @@ pub struct SyncSummary {
     pub warnings: Vec<String>,
 }
 
+/// The legacy/Tier-2 "secret" area folder. It lives on GitHub but is only
+/// installed when a matching package is selected (see `detect_installed_codes`).
+pub const LFFM_CODE: &str = "LFFM";
+
 #[derive(Debug)]
 pub struct PlanInputs<'a> {
     pub github_root: Option<&'a Path>,
     pub gng_roots: &'a [PathBuf],
     pub install_root: &'a Path,
     pub github_short_sha: Option<String>,
-    /// FIRs the user wants installed. Top-level folders for any FIR *not* in
-    /// this list are skipped by the GitHub overlay and removed from the
-    /// install root. `LFXX` (the shared base) is always kept.
-    pub selected_firs: &'a [FirCode],
 }
 
-/// The first path segment parsed as a FIR code, if it is one. `LFXX` and other
-/// non-FIR roots return `None`.
-fn top_level_fir(rel: &Path) -> Option<FirCode> {
+/// Uppercased first path segment, e.g. `LFBB/ICAO/x` → `Some("LFBB")`.
+fn first_segment_upper(rel: &Path) -> Option<String> {
     rel.components()
         .next()
-        .and_then(|c| c.as_os_str().to_str())
-        .and_then(|s| s.parse::<FirCode>().ok())
+        .map(|c| c.as_os_str().to_string_lossy().to_ascii_uppercase())
+}
+
+/// Which areas the selected packages provide. The GitHub overlay keeps only
+/// these folders (plus the always-shared `LFXX`); everything else is dropped.
+///
+/// Detection is by content: a `<CODE>/` folder, or a `<CODE>-…` / `<CODE>.…`
+/// sector/profile filename. `LFFM` is tracked separately since it is not a
+/// regular [`FirCode`] and stays excluded unless its package is present.
+fn detect_installed_codes(gng_roots: &[PathBuf]) -> (BTreeSet<FirCode>, bool) {
+    let mut firs = BTreeSet::new();
+    let mut lffm = false;
+    let matches_code = |upper: &str, code: &str| {
+        upper == code || upper.starts_with(&format!("{code}-")) || upper.starts_with(&format!("{code}."))
+    };
+    for root in gng_roots {
+        for entry in WalkDir::new(root).into_iter().filter_map(Result::ok) {
+            let upper = entry.file_name().to_string_lossy().to_ascii_uppercase();
+            for fir in FirCode::ALL {
+                if matches_code(&upper, fir.as_str()) {
+                    firs.insert(fir);
+                }
+            }
+            if matches_code(&upper, LFFM_CODE) {
+                lffm = true;
+            }
+        }
+    }
+    (firs, lffm)
+}
+
+/// If `rel` is `<FIR>/ICAO/…` or `<FIR>/NavData/…`, the equivalent path under
+/// `LFXX` (CoFrance reads ICAO/NavData from `LFXX`, not the per-FIR folder).
+fn mirror_navdata_to_lfxx(rel: &Path) -> Option<PathBuf> {
+    let parts: Vec<_> = rel.iter().collect();
+    if parts.len() < 2 {
+        return None;
+    }
+    let first = parts[0].to_string_lossy();
+    let second = parts[1].to_string_lossy();
+    let is_fir = first.parse::<FirCode>().is_ok();
+    let is_navdata = second.eq_ignore_ascii_case("ICAO") || second.eq_ignore_ascii_case("NavData");
+    if is_fir && is_navdata {
+        let tail: PathBuf = parts[1..].iter().collect();
+        Some(Path::new("LFXX").join(tail))
+    } else {
+        None
+    }
 }
 
 pub fn plan(inputs: PlanInputs<'_>) -> anyhow::Result<SyncPlan> {
@@ -97,24 +146,36 @@ pub fn plan(inputs: PlanInputs<'_>) -> anyhow::Result<SyncPlan> {
     };
     let gng_set = gng_owned_set();
 
-    // 0) Remove top-level folders for FIRs the user did not select.
+    // Which areas the selected packages cover. Drives which GitHub folders are
+    // kept; `LFXX` is always kept, `LFFM` only when its package is present.
+    let (installed_firs, install_lffm) = detect_installed_codes(inputs.gng_roots);
+
+    // 0) Remove top-level folders for areas not covered by the packages.
     for fir in FirCode::ALL {
-        if !inputs.selected_firs.contains(&fir) {
+        if !installed_firs.contains(&fir) {
             let dir = inputs.install_root.join(fir.as_str());
             if dir.is_dir() {
                 plan.ops.push(FileOp::DeleteLegacy { path: dir });
             }
         }
     }
+    if !install_lffm {
+        let lffm_dir = inputs.install_root.join(LFFM_CODE);
+        if lffm_dir.is_dir() {
+            plan.ops.push(FileOp::DeleteLegacy { path: lffm_dir });
+        }
+    }
 
-    // 1) Plan GitHub-source operations (overlay), skipping GNG-owned paths and
-    //    any unselected FIR's folder.
+    // 1) Back up the current LFXX/Settings, then lay down the GitHub overlay
+    //    (which re-downloads and would otherwise overwrite those settings).
     if let Some(github_root) = inputs.github_root {
+        plan_settings_backup(inputs.install_root, &mut plan);
         plan_github_overlay(
             github_root,
             inputs.install_root,
             &gng_set,
-            inputs.selected_firs,
+            &installed_firs,
+            install_lffm,
             &mut plan,
         );
     }
@@ -199,11 +260,39 @@ fn files_equal(a: &Path, b: &Path) -> bool {
     }
 }
 
+/// Snapshot the current `LFXX/Settings` into `LFXX/Settings/backup` before the
+/// GitHub overlay overwrites it. Emitted before the overlay ops so the copies
+/// capture the *old* files; the `backup/` folder itself is never re-backed-up.
+fn plan_settings_backup(install_root: &Path, plan: &mut SyncPlan) {
+    let settings_dir = install_root.join("LFXX").join("Settings");
+    if !settings_dir.is_dir() {
+        return;
+    }
+    let backup_dir = settings_dir.join("backup");
+    for entry in WalkDir::new(&settings_dir).into_iter().filter_map(Result::ok) {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let path = entry.path();
+        if path.starts_with(&backup_dir) {
+            continue;
+        }
+        let Ok(rel) = path.strip_prefix(&settings_dir) else {
+            continue;
+        };
+        plan.ops.push(FileOp::Copy {
+            src: path.to_path_buf(),
+            dst: backup_dir.join(rel),
+        });
+    }
+}
+
 fn plan_github_overlay(
     github_root: &Path,
     install_root: &Path,
     gng_set: &globset::GlobSet,
-    selected_firs: &[FirCode],
+    installed_firs: &BTreeSet<FirCode>,
+    install_lffm: bool,
     plan: &mut SyncPlan,
 ) {
     for entry in WalkDir::new(github_root).into_iter().filter_map(Result::ok) {
@@ -215,9 +304,17 @@ fn plan_github_overlay(
             Err(_) => continue,
         };
 
-        // Skip files belonging to a FIR the user did not select.
-        if let Some(fir) = top_level_fir(&rel) {
-            if !selected_firs.contains(&fir) {
+        // Keep only area folders the packages cover. `LFXX` and any non-area
+        // top-level files are always kept; `LFFM` only when its package is in.
+        if let Some(code) = first_segment_upper(&rel) {
+            let skip = if code == LFFM_CODE {
+                !install_lffm
+            } else if let Ok(fir) = code.parse::<FirCode>() {
+                !installed_firs.contains(&fir)
+            } else {
+                false
+            };
+            if skip {
                 continue;
             }
         }
@@ -276,9 +373,10 @@ fn plan_gng_overlay(
                 sector_targets.insert((fir, ext));
                 continue;
             }
-            // Unrecognised .sct/.ese — skip with warning (e.g. LFFM).
-            plan.warnings
-                .push(format!("Ignoring unrecognised sector file: {}", name));
+            // Not a FIR sector filename — skip (e.g. sub-sector includes). This
+            // is expected, so it's a diagnostic note rather than a warning.
+            plan.notes
+                .push(format!("Ignored non-FIR sector file: {}", name));
             continue;
         }
 
@@ -294,12 +392,12 @@ fn plan_gng_overlay(
             }
         }
 
-        // `.prf` files: move into <FIR>/Profiles/.
+        // `.prf` files: place directly at the FIR folder root (EuroScope expects
+        // them there — not in a Profiles/ subfolder).
         if ext.as_deref() == Some("prf") {
             if let Some(fir) = locate_fir_for_prf(gng_root, path) {
                 let dst = install_root
                     .join(fir.as_str())
-                    .join("Profiles")
                     .join(path.file_name().unwrap());
                 plan.ops.push(FileOp::MoveProfile {
                     src: path.to_path_buf(),
@@ -307,8 +405,8 @@ fn plan_gng_overlay(
                 });
                 continue;
             }
-            plan.warnings.push(format!(
-                "Skipping .prf with no recognisable FIR: {}",
+            plan.notes.push(format!(
+                "Skipped .prf with no recognisable FIR: {}",
                 path.display()
             ));
             continue;
@@ -325,6 +423,14 @@ fn plan_gng_overlay(
                     src: path.to_path_buf(),
                     dst: install_root.join(&rel),
                 });
+                // CoFrance reads ICAO/NavData from LFXX, so mirror a FIR's copy
+                // there as well.
+                if let Some(lffx_rel) = mirror_navdata_to_lfxx(&rel) {
+                    plan.ops.push(FileOp::Copy {
+                        src: path.to_path_buf(),
+                        dst: install_root.join(lffx_rel),
+                    });
+                }
                 continue;
             }
             // Per-FIR copyright file is always preserved.
