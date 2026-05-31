@@ -59,6 +59,16 @@ pub async fn run_sync(
 }
 
 #[tauri::command]
+pub async fn update_from_github(
+    app: AppHandle,
+    also_apply_profile: Option<bool>,
+) -> Result<SyncSummary, String> {
+    crate::sync_orchestrator::update_from_github(&app, also_apply_profile)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn apply_profile_to_pack(app: AppHandle, install_root: PathBuf) -> Result<usize, String> {
     let profile = profile_store::load(&app).map_err(|e| e.to_string())?;
     controller_pack_core::profile_configurator::apply(&install_root, &profile)

@@ -1,62 +1,44 @@
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use std::path::Path;
 
-/// Paths managed by GNG / AeroNav rather than the GitHub repo. The GitHub
-/// overlay MUST NOT write to any path matching this list. Direct port of
-/// the original Python `GNG_ONLY_FILES` (scripts/installer/config.py).
+/// Paths provided by the FIR packages rather than the GitHub repo, so the
+/// GitHub overlay MUST NOT write to any path matching this list. The packages
+/// only contribute sector files (`.sct`/`.ese`, renamed into `LFXX/Sectors`)
+/// and the per-FIR `ICAO`/`NavData` folders (also mirrored into `LFXX`).
+/// Everything else — `.prf`, settings, plugins (incl. CoFrance), Alias, etc. —
+/// comes from GitHub.
 ///
 /// Patterns are matched against the *destination* path inside the install
 /// root, with forward slashes (e.g. "LFXX/Sectors/LFBB.sct").
 pub const GNG_OWNED_PATHS: &[&str] = &[
-    // Every sector file and folder under LFXX/Sectors.
+    // Sector files (the package overlay renames them into LFXX/Sectors).
     "LFXX/Sectors",
     "LFXX/Sectors/**",
-    // Alias comes from GNG.
-    "LFXX/Alias",
-    "LFXX/Alias/**",
-    // LFXX generated/navdata files.
+    // ICAO / NavData, both the LFXX mirror and the per-FIR sources.
     "LFXX/ICAO",
     "LFXX/ICAO/**",
     "LFXX/NavData",
     "LFXX/NavData/**",
-    // CoFrance plugin generated files (the loader DLL is the exception
-    // handled separately, see `is_cofrance_loader_exception`).
-    "LFXX/Plugins/CoFrance",
-    "LFXX/Plugins/CoFrance/**",
-    // Settings backups.
-    "LFXX/Settings/settings_backup",
-    "LFXX/Settings/settings_backup/**",
-    // Per-FIR ICAO/NavData and sensitive settings.
     "LFBB/ICAO",
     "LFBB/ICAO/**",
     "LFBB/NavData",
     "LFBB/NavData/**",
-    "LFBB/Settings/LoginProfiles.txt",
-    "LFBB/Settings/VoiceChannels.txt",
     "LFEE/ICAO",
     "LFEE/ICAO/**",
     "LFEE/NavData",
     "LFEE/NavData/**",
-    "LFEE/Settings/LoginProfiles.txt",
-    "LFEE/Settings/VoiceChannels.txt",
     "LFFF/ICAO",
     "LFFF/ICAO/**",
     "LFFF/NavData",
     "LFFF/NavData/**",
-    "LFFF/Settings/LoginProfiles.txt",
-    "LFFF/Settings/VoiceChannels.txt",
     "LFMM/ICAO",
     "LFMM/ICAO/**",
     "LFMM/NavData",
     "LFMM/NavData/**",
-    "LFMM/Settings/LoginProfiles.txt",
-    "LFMM/Settings/VoiceChannels.txt",
     "LFRR/ICAO",
     "LFRR/ICAO/**",
     "LFRR/NavData",
     "LFRR/NavData/**",
-    "LFRR/Settings/LoginProfiles.txt",
-    "LFRR/Settings/VoiceChannels.txt",
 ];
 
 pub fn gng_owned_set() -> GlobSet {
@@ -73,12 +55,6 @@ pub fn rel_path_str(path: &Path) -> String {
 
 pub fn is_gng_owned(set: &GlobSet, rel: &Path) -> bool {
     set.is_match(rel_path_str(rel))
-}
-
-/// The single explicit GitHub-overlay exception inside an otherwise GNG-owned
-/// directory: the CoFrance loader DLL ships from the repo.
-pub fn is_cofrance_loader_exception(rel: &Path) -> bool {
-    rel_path_str(rel).eq_ignore_ascii_case(super::COFRANCE_LOADER_PATH)
 }
 
 #[cfg(test)]
@@ -103,27 +79,20 @@ mod tests {
         let set = gng_owned_set();
         assert!(is_gng_owned(&set, &p("LFBB/ICAO/something.txt")));
         assert!(is_gng_owned(&set, &p("LFRR/NavData/sub/deep.dat")));
-        assert!(is_gng_owned(&set, &p("LFFF/Settings/LoginProfiles.txt")));
+        assert!(is_gng_owned(&set, &p("LFXX/NavData/airways.txt")));
     }
 
     #[test]
-    fn repo_owned_paths_are_not_gng_owned() {
+    fn github_provided_paths_are_not_gng_owned() {
         let set = gng_owned_set();
         assert!(!is_gng_owned(&set, &p("LFBB/ASR/something.asr")));
         assert!(!is_gng_owned(&set, &p("LFXX/Settings/Symbology.txt")));
         assert!(!is_gng_owned(&set, &p("LFXX/Plugins/CCAMS/CCAMS.dll")));
-        assert!(!is_gng_owned(&set, &p("LFFF/Profiles/EGA Paris.prf")));
-    }
-
-    #[test]
-    fn cofrance_directory_owned_but_loader_is_exception() {
-        let set = gng_owned_set();
-        let loader = p("LFXX/Plugins/CoFrance/CoFranceLoader.dll");
-        let other = p("LFXX/Plugins/CoFrance/generated.dat");
-        assert!(is_gng_owned(&set, &loader));
-        assert!(is_gng_owned(&set, &other));
-        assert!(is_cofrance_loader_exception(&loader));
-        assert!(!is_cofrance_loader_exception(&other));
+        // Now GitHub-provided: profiles, CoFrance, Alias, per-FIR settings.
+        assert!(!is_gng_owned(&set, &p("LFBB/EGA Paris.prf")));
+        assert!(!is_gng_owned(&set, &p("LFXX/Plugins/CoFrance/CoFranceLoader.dll")));
+        assert!(!is_gng_owned(&set, &p("LFXX/Alias/Alias.txt")));
+        assert!(!is_gng_owned(&set, &p("LFFF/Settings/LoginProfiles.txt")));
     }
 
     #[test]

@@ -43,6 +43,7 @@ pub fn run() {
             commands::detect_pack_dir,
             commands::looks_like_controller_pack,
             commands::run_sync,
+            commands::update_from_github,
             commands::apply_profile_to_pack,
             commands::import_plugin_lines,
             commands::check_updates,

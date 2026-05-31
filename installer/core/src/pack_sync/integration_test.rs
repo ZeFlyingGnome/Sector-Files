@@ -3,7 +3,7 @@
 //! Builds a fake GitHub repo tree and fake package tree(s) inside a tempdir,
 //! runs `plan` + `apply`, and asserts the resulting install layout.
 
-use super::plan::{plan, PlanInputs};
+use super::plan::{plan, AreaSource, PlanInputs};
 use super::*;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -38,7 +38,9 @@ fn build_fake_github_repo() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("vaccfr-Sector-Files-abcdef1");
 
-    // Overlay content for several areas + the shared base.
+    // Overlay content for several areas + the shared base. GitHub provides
+    // everything except sectors / ICAO / NavData — including .prf, CoFrance,
+    // copyright.
     write_file(&root, "LFBB/ASR/Tower.asr", "asr content\n");
     write_file(&root, "LFFF/ASR/Paris.asr", "paris asr\n");
     write_file(&root, "LFEE/ASR/Reims.asr", "reims asr\n"); // FIR with no package
@@ -46,28 +48,31 @@ fn build_fake_github_repo() -> (TempDir, PathBuf) {
     write_file(&root, "LFXX/Settings/Symbology.txt", "sym\n");
     write_file(&root, "LFXX/Plugins/CCAMS/CCAMS.dll", "ccams\n");
     write_file(&root, "LFXX/Plugins/CoFrance/CoFranceLoader.dll", "loader\n");
+    write_file(&root, "LFXX/Plugins/CoFrance/CoFrance.ini", "cofrance config\n");
     write_file(&root, "LFBB/aeronav_copyright.txt", "(c) AeroNav\n");
+    write_file(&root, "LFFF/EGA Paris.prf", "github prf\n"); // profiles come from GitHub
 
-    // GNG-owned paths the overlay must NOT write.
+    // Package-owned paths the overlay must NOT write (sectors + ICAO/NavData).
     write_file(&root, "LFXX/Sectors/STALE.txt", "ought-to-be-skipped\n");
     write_file(&root, "LFBB/ICAO/airports.txt", "GH should not write this\n");
-    write_file(&root, "LFXX/Plugins/CoFrance/generated_state.dat", "GH not this\n");
 
     let path = root.clone();
     (tmp, path)
 }
 
-/// A package covering LFBB (sectors + nav data) and LFFF (a `.prf`).
+/// A package covering LFBB (sectors + rwy + nav data) and LFFF. It also ships a
+/// `.prf` and a copyright file that must be IGNORED (those come from GitHub).
 fn build_fake_gng_package() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().to_path_buf();
 
     write_file(&root, "LFBB-Bordeaux-260301-0003.sct", "sct content\n");
     write_file(&root, "LFBB-Bordeaux-260301-0003.ese", "ese content\n");
+    write_file(&root, "LFBB-Bordeaux-260301-0003.rwy", "rwy content\n");
     write_file(&root, "LFBB/ICAO/airports.txt", "gng airports\n");
     write_file(&root, "LFBB/NavData/airways.txt", "navdata\n");
-    write_file(&root, "LFFF/EGA Paris.prf", "prf content\n");
-    write_file(&root, "LFBB/aeronav_copyright.txt", "(c) AeroNav\n");
+    write_file(&root, "LFFF/EGA Paris.prf", "zip prf — must be ignored\n");
+    write_file(&root, "LFBB/aeronav_copyright.txt", "zip copyright — must be ignored\n");
 
     (tmp, root)
 }
@@ -103,6 +108,7 @@ fn end_to_end_sync_produces_expected_layout() {
         gng_roots: &gng_roots,
         install_root,
         github_short_sha: Some("abcdef1".into()),
+        area_source: AreaSource::Packages,
     })
     .unwrap();
 
@@ -133,6 +139,10 @@ fn end_to_end_sync_produces_expected_layout() {
     let lffx_nav = fs::read_to_string(install_root.join("LFXX/NavData/airways.txt")).unwrap();
     assert_eq!(lffx_nav.trim(), "navdata");
 
+    // .rwy is kept from the package, paired with the sector dir.
+    let rwy = fs::read_to_string(install_root.join("LFXX/Sectors/LFBB.rwy")).unwrap();
+    assert_eq!(rwy.trim(), "rwy content");
+
     // GitHub overlay only for covered areas: LFBB + LFFF (package) and LFXX.
     assert!(files.contains(&"LFBB/ASR/Tower.asr".to_string()));
     assert!(files.contains(&"LFFF/ASR/Paris.asr".to_string()));
@@ -143,22 +153,29 @@ fn end_to_end_sync_produces_expected_layout() {
     // No LFFM package → the secret folder is not installed.
     assert!(!files.iter().any(|f| f.starts_with("LFFM/")), "got: {files:#?}");
 
-    // CoFrance loader exception came from GitHub.
-    let loader =
-        fs::read_to_string(install_root.join("LFXX/Plugins/CoFrance/CoFranceLoader.dll")).unwrap();
-    assert_eq!(loader.trim(), "loader");
+    // CoFrance now comes entirely from GitHub.
+    assert_eq!(
+        fs::read_to_string(install_root.join("LFXX/Plugins/CoFrance/CoFranceLoader.dll"))
+            .unwrap()
+            .trim(),
+        "loader"
+    );
+    assert!(files.contains(&"LFXX/Plugins/CoFrance/CoFrance.ini".to_string()));
 
     // Pre-existing user state untouched.
     let user_state =
         fs::read_to_string(install_root.join("LFXX/Plugins/CoFrance/user_settings.dat")).unwrap();
     assert_eq!(user_state.trim(), "user state");
 
-    // .prf goes to the FIR folder ROOT, not a Profiles/ subfolder.
-    assert!(files.contains(&"LFFF/EGA Paris.prf".to_string()));
+    // .prf comes from GitHub even though the package ships one — and it lands at
+    // the FIR folder root, not a Profiles/ subfolder.
+    let prf = fs::read_to_string(install_root.join("LFFF/EGA Paris.prf")).unwrap();
+    assert_eq!(prf.trim(), "github prf");
     assert!(!files.iter().any(|f| f.contains("/Profiles/")), "got: {files:#?}");
 
-    // Per-FIR copyright preserved; markers written.
-    assert!(files.contains(&"LFBB/aeronav_copyright.txt".to_string()));
+    // Copyright comes from GitHub, not the package.
+    let copyright = fs::read_to_string(install_root.join("LFBB/aeronav_copyright.txt")).unwrap();
+    assert_eq!(copyright.trim(), "(c) AeroNav");
     let marker = fs::read_to_string(install_root.join("LFXX/Sectors/current_airac.txt")).unwrap();
     assert_eq!(marker.trim(), "2603");
     assert!(files.contains(&".github/installer-version.txt".to_string()));
@@ -184,6 +201,7 @@ fn second_run_is_a_no_op() {
         gng_roots: &gng_roots,
         install_root,
         github_short_sha: Some("abcdef1".into()),
+        area_source: AreaSource::Packages,
     };
 
     apply(install_root, &plan(inputs()).unwrap()).unwrap();
@@ -210,6 +228,7 @@ fn folders_without_a_package_are_removed_including_lffm() {
             gng_roots: &gng_roots,
             install_root,
             github_short_sha: Some("abcdef1".into()),
+        area_source: AreaSource::Packages,
         })
         .unwrap(),
     )
@@ -240,6 +259,7 @@ fn lffm_is_installed_when_its_package_is_present() {
             gng_roots: &gng_roots,
             install_root,
             github_short_sha: Some("abcdef1".into()),
+        area_source: AreaSource::Packages,
         })
         .unwrap(),
     )
@@ -250,4 +270,39 @@ fn lffm_is_installed_when_its_package_is_present() {
         files.contains(&"LFFM/Secret.txt".to_string()),
         "LFFM GitHub folder should be installed when its package is present; got: {files:#?}"
     );
+}
+
+#[test]
+fn github_only_refresh_updates_installed_areas_without_packages() {
+    let (_gh_tmp, github_root) = build_fake_github_repo();
+    let install_tmp = TempDir::new().unwrap();
+    let install_root = install_tmp.path();
+
+    // Areas already installed (no packages provided this run).
+    write_file(install_root, "LFBB/ASR/old.asr", "old\n");
+    write_file(install_root, "LFFF/ASR/old.asr", "old\n");
+
+    apply(
+        install_root,
+        &plan(PlanInputs {
+            github_root: Some(&github_root),
+            gng_roots: &[],
+            install_root,
+            github_short_sha: Some("abcdef1".into()),
+            area_source: AreaSource::InstalledOnly,
+        })
+        .unwrap(),
+    )
+    .unwrap();
+
+    let files = list_files(install_root);
+    // GitHub files refreshed for the installed areas + the shared base...
+    assert!(files.contains(&"LFBB/ASR/Tower.asr".to_string()));
+    assert!(files.contains(&"LFFF/ASR/Paris.asr".to_string()));
+    assert!(files.contains(&"LFXX/Settings/Symbology.txt".to_string()));
+    // ...and the installed folders are kept, not removed.
+    assert!(files.contains(&"LFBB/ASR/old.asr".to_string()));
+    // Areas that were NOT installed stay absent (LFEE has no folder; LFFM secret).
+    assert!(!files.iter().any(|f| f.starts_with("LFEE/")), "got: {files:#?}");
+    assert!(!files.iter().any(|f| f.starts_with("LFFM/")), "got: {files:#?}");
 }

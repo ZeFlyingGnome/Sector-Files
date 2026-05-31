@@ -1,5 +1,5 @@
 use super::airac::parse_gng_sector_filename;
-use super::ownership::{gng_owned_set, is_cofrance_loader_exception, is_gng_owned};
+use super::ownership::{gng_owned_set, is_gng_owned};
 use super::{COPYRIGHT_FILE, CURRENT_AIRAC_FILE, SECTORS_SUBPATH, SECTOR_BACKUP_DIRNAME};
 use crate::fir::FirCode;
 use serde::Serialize;
@@ -76,12 +76,26 @@ pub struct SyncSummary {
 /// installed when a matching package is selected (see `detect_installed_codes`).
 pub const LFFM_CODE: &str = "LFFM";
 
+/// How the set of areas (FIR folders + LFFM) to install is determined.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum AreaSource {
+    /// Areas come from the selected packages; folders for areas *not* covered by
+    /// a package are removed from the install root. Used for a full install/update.
+    #[default]
+    Packages,
+    /// Areas are whatever is already present in the install root, and nothing is
+    /// removed. Used to refresh GitHub files in place without re-supplying the
+    /// FIR packages.
+    InstalledOnly,
+}
+
 #[derive(Debug)]
 pub struct PlanInputs<'a> {
     pub github_root: Option<&'a Path>,
     pub gng_roots: &'a [PathBuf],
     pub install_root: &'a Path,
     pub github_short_sha: Option<String>,
+    pub area_source: AreaSource,
 }
 
 /// Uppercased first path segment, e.g. `LFBB/ICAO/x` → `Some("LFBB")`.
@@ -119,6 +133,28 @@ fn detect_installed_codes(gng_roots: &[PathBuf]) -> (BTreeSet<FirCode>, bool) {
     (firs, lffm)
 }
 
+/// Which areas already have a top-level folder in the install root. Used by a
+/// GitHub-only refresh to know which folders to update without packages.
+fn detect_installed_areas_on_disk(install_root: &Path) -> (BTreeSet<FirCode>, bool) {
+    let mut firs = BTreeSet::new();
+    let mut lffm = false;
+    if let Ok(entries) = std::fs::read_dir(install_root) {
+        for entry in entries.flatten() {
+            if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let upper = entry.file_name().to_string_lossy().to_ascii_uppercase();
+            if let Ok(fir) = upper.parse::<FirCode>() {
+                firs.insert(fir);
+            }
+            if upper == LFFM_CODE {
+                lffm = true;
+            }
+        }
+    }
+    (firs, lffm)
+}
+
 /// If `rel` is `<FIR>/ICAO/…` or `<FIR>/NavData/…`, the equivalent path under
 /// `LFXX` (CoFrance reads ICAO/NavData from `LFXX`, not the per-FIR folder).
 fn mirror_navdata_to_lfxx(rel: &Path) -> Option<PathBuf> {
@@ -146,23 +182,30 @@ pub fn plan(inputs: PlanInputs<'_>) -> anyhow::Result<SyncPlan> {
     };
     let gng_set = gng_owned_set();
 
-    // Which areas the selected packages cover. Drives which GitHub folders are
-    // kept; `LFXX` is always kept, `LFFM` only when its package is present.
-    let (installed_firs, install_lffm) = detect_installed_codes(inputs.gng_roots);
+    // Which areas to install. From the packages (full sync) or from whatever is
+    // already on disk (GitHub-only refresh). `LFXX` is always kept; `LFFM` only
+    // when present in the chosen source.
+    let (installed_firs, install_lffm) = match inputs.area_source {
+        AreaSource::Packages => detect_installed_codes(inputs.gng_roots),
+        AreaSource::InstalledOnly => detect_installed_areas_on_disk(inputs.install_root),
+    };
 
-    // 0) Remove top-level folders for areas not covered by the packages.
-    for fir in FirCode::ALL {
-        if !installed_firs.contains(&fir) {
-            let dir = inputs.install_root.join(fir.as_str());
-            if dir.is_dir() {
-                plan.ops.push(FileOp::DeleteLegacy { path: dir });
+    // 0) Remove top-level folders for uncovered areas — only when (re)scoping
+    //    from packages. A GitHub-only refresh never removes anything.
+    if inputs.area_source == AreaSource::Packages {
+        for fir in FirCode::ALL {
+            if !installed_firs.contains(&fir) {
+                let dir = inputs.install_root.join(fir.as_str());
+                if dir.is_dir() {
+                    plan.ops.push(FileOp::DeleteLegacy { path: dir });
+                }
             }
         }
-    }
-    if !install_lffm {
-        let lffm_dir = inputs.install_root.join(LFFM_CODE);
-        if lffm_dir.is_dir() {
-            plan.ops.push(FileOp::DeleteLegacy { path: lffm_dir });
+        if !install_lffm {
+            let lffm_dir = inputs.install_root.join(LFFM_CODE);
+            if lffm_dir.is_dir() {
+                plan.ops.push(FileOp::DeleteLegacy { path: lffm_dir });
+            }
         }
     }
 
@@ -326,8 +369,9 @@ fn plan_github_overlay(
             // Always keep per-FIR copyright if present; the overlay handles it.
         }
 
-        // GNG-owned paths are skipped, with the explicit CoFrance loader exception.
-        if is_gng_owned(gng_set, &rel) && !is_cofrance_loader_exception(&rel) {
+        // Package-owned paths (sectors, ICAO, NavData) are provided by the
+        // packages, not GitHub.
+        if is_gng_owned(gng_set, &rel) {
             continue;
         }
 
@@ -380,7 +424,7 @@ fn plan_gng_overlay(
             continue;
         }
 
-        // `.rwy` files: pair with the sector dir.
+        // `.rwy` files: keep, paired with the sector dir as <FIR>.rwy.
         if ext.as_deref() == Some("rwy") {
             if let Some((fir, _)) = parse_gng_sector_filename(&name) {
                 let dst = sectors_dir.join(format!("{}.rwy", fir.as_str()));
@@ -388,36 +432,16 @@ fn plan_gng_overlay(
                     src: path.to_path_buf(),
                     dst,
                 });
-                continue;
             }
-        }
-
-        // `.prf` files: place directly at the FIR folder root (EuroScope expects
-        // them there — not in a Profiles/ subfolder).
-        if ext.as_deref() == Some("prf") {
-            if let Some(fir) = locate_fir_for_prf(gng_root, path) {
-                let dst = install_root
-                    .join(fir.as_str())
-                    .join(path.file_name().unwrap());
-                plan.ops.push(FileOp::MoveProfile {
-                    src: path.to_path_buf(),
-                    dst,
-                });
-                continue;
-            }
-            plan.notes.push(format!(
-                "Skipped .prf with no recognisable FIR: {}",
-                path.display()
-            ));
             continue;
         }
 
-        // All other files: only kept if they live under a recognised FIR path
-        // inside the GNG archive AND that path is in our GNG-owned list (i.e.
-        // ICAO, NavData, Alias, settings the FIR owns).
+        // Everything else from the package is taken ONLY when it is an ICAO or
+        // NavData file (under a FIR or LFXX) — those are the paths in the
+        // GNG-owned list. `.prf`, `.rwy`, settings, plugins, copyright, etc. are
+        // GitHub-provided and intentionally ignored here.
         if let Some(rel) = locate_inside_fir_or_lfxx(gng_root, path) {
             let gng_set = gng_owned_set();
-            // Apply GNG-owned paths (these are exactly the paths GNG should provide).
             if is_gng_owned(&gng_set, &rel) {
                 plan.ops.push(FileOp::Copy {
                     src: path.to_path_buf(),
@@ -431,38 +455,9 @@ fn plan_gng_overlay(
                         dst: install_root.join(lffx_rel),
                     });
                 }
-                continue;
-            }
-            // Per-FIR copyright file is always preserved.
-            if rel
-                .file_name()
-                .map(|n| n.to_string_lossy().to_ascii_lowercase() == COPYRIGHT_FILE)
-                .unwrap_or(false)
-            {
-                plan.ops.push(FileOp::Copy {
-                    src: path.to_path_buf(),
-                    dst: install_root.join(&rel),
-                });
             }
         }
     }
-}
-
-fn locate_fir_for_prf(gng_root: &Path, path: &Path) -> Option<FirCode> {
-    let rel = path.strip_prefix(gng_root).ok()?;
-    for part in rel.iter() {
-        if let Ok(fir) = part.to_string_lossy().parse::<FirCode>() {
-            return Some(fir);
-        }
-    }
-    // If the .prf sits at the GNG archive root, try to infer from the filename.
-    let stem = path.file_stem()?.to_string_lossy().to_ascii_uppercase();
-    for fir in FirCode::ALL {
-        if stem.contains(fir.as_str()) {
-            return Some(fir);
-        }
-    }
-    None
 }
 
 /// Returns the destination-relative path for a GNG file, anchored at the
