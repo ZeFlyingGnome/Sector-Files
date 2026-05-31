@@ -40,13 +40,32 @@ Commit and push. Every subsequent build will be signed by the matching private k
 
 ## Cutting a release
 
-1. Bump the version in `installer/src-tauri/Cargo.toml` and `installer/src-tauri/tauri.conf.json` (keep them in sync). Update `installer/package.json` to match.
-2. Commit: `git commit -m "installer: bump to v0.2.0"`.
-3. Tag with the `installer-v` prefix: `git tag installer-v0.2.0 && git push origin installer-v0.2.0`.
-4. Create a GitHub Release for that tag. The `.github/workflows/build-installer-tauri.yml` workflow will build Windows + Linux artifacts, sign them, generate `latest.json`, and attach everything to the release.
-5. Verify the release contains: `Controller Pack Installer_<version>_x64-setup.exe`, `Controller Pack Installer_<version>_x64-setup.exe.sig`, `latest.json`.
+The pack ships as a **single combined release roughly once a month**. Any published GitHub Release — whether it carries AIRAC (sector) changes, installer changes, or both — triggers `.github/workflows/build-installer-tauri.yml`, which rebuilds, signs, and attaches the Windows x64 installer plus `latest.json` to that same release. There is no dedicated installer-only release stream and no special tag prefix; the workflow keys off the release event, not the tag name.
 
-End users with a previous Tauri installer (>= v0.1.0) will see the new version offered the next time they launch the app.
+### When the installer code changed
+
+Bump the version *before* tagging so clients actually see the update — the updater compares the version in `latest.json` against the running app, so an unchanged version is treated as "no update available".
+
+1. Bump the version in all three places (keep them in sync):
+   - `installer/Cargo.toml` → `[workspace.package] version` (this drives both Rust crates)
+   - `installer/src-tauri/tauri.conf.json` → top-level `version`
+   - `installer/package.json` → `version`
+2. Commit: `git commit -m "installer: bump to v0.2.0"`.
+
+### When only the AIRAC / sector content changed
+
+No version bump is needed. The release still rebuilds and re-signs the installer, but because the version is unchanged, existing installs see "no update" and keep running their current build. That's intended — the new sectors are picked up the next time a user runs the installer, not via the app updater.
+
+### Publishing
+
+1. Tag and create the GitHub Release as usual for the monthly drop (use whatever tag the release uses — the workflow does not require a prefix).
+2. The `release-build` job runs only on `release: published`. It builds the Windows x64 NSIS installer with `tauri-action`, signs it, generates `latest.json`, and attaches everything to the release. (Linux is only a smoke build on non-release pushes/PRs — no Linux artifact is published.)
+3. Verify the release assets contain:
+   - `French vACC Controller Pack Installer_<version>_x64-setup.exe`
+   - `French vACC Controller Pack Installer_<version>_x64-setup.exe.sig`
+   - `latest.json`
+
+The updater endpoint is `https://github.com/vaccfr/Sector-Files/releases/latest/download/latest.json` (configured in `tauri.conf.json` → `plugins.updater.endpoints`), so it always reads whatever the **latest** release published — there's no per-tag URL to update. End users with a previous Tauri installer (>= v0.1.0) see the new version offered the next time they launch the app (passive install on Windows).
 
 ## Rolling back
 
@@ -57,4 +76,4 @@ If a release is broken in the wild:
 
 ## Initial cutover from the legacy Python installer
 
-The legacy Python `ControllerPackInstaller.exe` self-updated by hitting the same GitHub Releases stream. The first Tauri release (`installer-v0.1.0`) should be accompanied by a one-time message pointing existing Python users at the new download URL — see `openspec/changes/rust-tauri-installer/design.md` §"Migration Plan".
+The legacy Python `ControllerPackInstaller.exe` self-updated by hitting the same GitHub Releases stream. The first Tauri release (`v0.1.0`) should be accompanied by a one-time message pointing existing Python users at the new download URL — see `openspec/changes/rust-tauri-installer/design.md` §"Migration Plan".
