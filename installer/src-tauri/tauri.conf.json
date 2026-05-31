@@ -26,7 +26,8 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/icon.ico"
     ]
@@ -37,7 +38,7 @@
       "endpoints": [
         "https://github.com/vaccfr/Sector-Files/releases/latest/download/latest.json"
       ],
-      "pubkey": "REPLACE_WITH_TAURI_SIGNER_PUBKEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ1NDI5RDRCQkQ3MkIwOEMKUldTTXNISzlTNTFDMVpZa1JwaGpIRUVia1d5RHhReGlFQnlSZ2hOV2ZXVVc4UTJKMTBpMVhMYk8K",
       "windows": {
         "installMode": "passive"
       }
