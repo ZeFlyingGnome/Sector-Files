@@ -19,7 +19,6 @@ export interface InstalledVersions {
 export interface Preferences {
   auto_check_updates: boolean;
   apply_creds_after_sync: boolean;
-  selected_firs: FirCode[];
 }
 
 export interface Profile {
@@ -66,8 +65,8 @@ export const api = {
   detectPackDir: () => invoke<string | null>("detect_pack_dir"),
   looksLikeControllerPack: (path: string) =>
     invoke<boolean>("looks_like_controller_pack", { path }),
-  runSync: (packagePaths: string[], selectedFirs: FirCode[], alsoApplyProfile?: boolean) =>
-    invoke<SyncSummary>("run_sync", { packagePaths, selectedFirs, alsoApplyProfile }),
+  runSync: (packagePaths: string[], alsoApplyProfile?: boolean) =>
+    invoke<SyncSummary>("run_sync", { packagePaths, alsoApplyProfile }),
   applyProfileToPack: (installRoot: string) =>
     invoke<number>("apply_profile_to_pack", { installRoot }),
   importPluginLines: (installRoot: string, examplePrf: string) =>

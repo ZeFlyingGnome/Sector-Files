@@ -15,7 +15,6 @@ import {
   api,
   onEvent,
   type CheckUpdatesReport,
-  type FirCode,
   type Profile,
   type SyncSummary,
 } from "@/lib/tauri";
@@ -36,7 +35,6 @@ import {
 import { UpdateBanner } from "@/components/UpdateBanner";
 
 const RATINGS = ["OBS", "S1", "S2", "S3", "C1", "C2", "C3", "I1", "I2", "I3", "SUP", "ADM"] as const;
-const ALL_FIRS: FirCode[] = ["LFBB", "LFEE", "LFFF", "LFMM", "LFRR"];
 
 const basename = (p: string) => p.replace(/[\\/]+$/, "").split(/[\\/]/).pop() ?? p;
 
@@ -101,7 +99,10 @@ export default function App() {
     }
     setBusy(true);
     try {
-      const summary: SyncSummary = await api.runSync(packages, profile.preferences.selected_firs);
+      const summary: SyncSummary = await api.runSync(packages);
+      if (summary.warnings.length) {
+        console.warn(`Sync warnings (${summary.warnings.length}):\n` + summary.warnings.join("\n"));
+      }
       toast.success(`Sync complete — ${summary.files_written} file(s) written`, {
         id: "sync",
         description: summary.warnings.length ? `${summary.warnings.length} warning(s)` : undefined,
@@ -368,35 +369,9 @@ function SettingsPanel({
     const prefs = { ...profile.preferences, [key]: !profile.preferences[key] };
     setProfile(await api.updateProfile({ preferences: prefs }));
   };
-  const toggleFir = async (fir: FirCode) => {
-    const set = new Set(profile.preferences.selected_firs);
-    set.has(fir) ? set.delete(fir) : set.add(fir);
-    const prefs = { ...profile.preferences, selected_firs: Array.from(set) };
-    setProfile(await api.updateProfile({ preferences: prefs }));
-  };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>FIRs to manage</CardTitle>
-          <CardDescription>
-            Folders for unselected FIRs are removed from the pack on install.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-4">
-          {ALL_FIRS.map((fir) => (
-            <label key={fir} className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={profile.preferences.selected_firs.includes(fir)}
-                onCheckedChange={() => toggleFir(fir)}
-              />
-              {fir}
-            </label>
-          ))}
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle>Preferences</CardTitle>
