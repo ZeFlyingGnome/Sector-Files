@@ -1,18 +1,18 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Controller Pack Installer",
+  "productName": "French vACC Controller Pack Installer",
   "version": "0.1.0",
   "identifier": "fr.vacc.controller-pack-installer",
   "build": {
     "beforeDevCommand": "bun run dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:3000",
     "beforeBuildCommand": "bun run build",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
-        "title": "Controller Pack Installer",
+        "title": "French vACC Controller Pack Installer",
         "width": 960,
         "height": 720,
         "minWidth": 800,
