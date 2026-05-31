@@ -6,6 +6,7 @@
 
 use super::plan::{plan, PlanInputs};
 use super::*;
+use crate::fir::FirCode;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
@@ -115,6 +116,7 @@ fn end_to_end_sync_produces_expected_layout() {
         gng_roots: &gng_roots,
         install_root,
         github_short_sha: Some("abcdef1".into()),
+        selected_firs: &FirCode::ALL,
     })
     .unwrap();
 
@@ -187,6 +189,7 @@ fn second_run_is_a_no_op() {
         gng_roots: &gng_roots,
         install_root,
         github_short_sha: Some("abcdef1".into()),
+        selected_firs: &FirCode::ALL,
     })
     .unwrap();
     apply(install_root, &plan1).unwrap();
@@ -197,8 +200,44 @@ fn second_run_is_a_no_op() {
         gng_roots: &gng_roots,
         install_root,
         github_short_sha: Some("abcdef1".into()),
+        selected_firs: &FirCode::ALL,
     })
     .unwrap();
     let summary = apply(install_root, &plan2).unwrap();
     assert_eq!(summary.files_written, 0, "second run should be a no-op");
+}
+
+#[test]
+fn unselected_fir_folder_is_removed_and_skipped() {
+    let (_gh_tmp, github_root) = build_fake_github_repo();
+    let install_tmp = TempDir::new().unwrap();
+    let install_root = install_tmp.path();
+
+    // A pre-existing folder for a FIR the user will NOT select.
+    write_file(install_root, "LFBB/ASR/old.asr", "stale\n");
+
+    // Select everything except LFBB.
+    let selected: Vec<FirCode> = FirCode::ALL
+        .into_iter()
+        .filter(|f| *f != FirCode::LFBB)
+        .collect();
+
+    let plan = plan(PlanInputs {
+        github_root: Some(&github_root),
+        gng_roots: &[],
+        install_root,
+        github_short_sha: Some("abcdef1".into()),
+        selected_firs: &selected,
+    })
+    .unwrap();
+    apply(install_root, &plan).unwrap();
+
+    let files = list_files(install_root);
+    // The unselected FIR's folder is gone, and no LFBB GitHub files were written.
+    assert!(
+        !files.iter().any(|f| f.starts_with("LFBB/")),
+        "LFBB folder should have been removed/skipped; got: {files:#?}"
+    );
+    // Shared LFXX content is still installed.
+    assert!(files.contains(&"LFXX/Settings/Symbology.txt".to_string()));
 }

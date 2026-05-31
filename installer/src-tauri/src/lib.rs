@@ -1,6 +1,6 @@
 pub mod profile_store;
-pub mod gng;
 pub mod github;
+pub mod local_packages;
 pub mod sync_orchestrator;
 pub mod update_check;
 pub mod commands;
@@ -10,7 +10,7 @@ pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info,controller_pack_installer_lib=debug".into()),
+                .unwrap_or_else(|_| "info,controller_pack_app_lib=debug".into()),
         )
         .try_init()
         .ok();
@@ -42,8 +42,6 @@ pub fn run() {
             commands::update_profile,
             commands::detect_pack_dir,
             commands::looks_like_controller_pack,
-            commands::gng_status,
-            commands::open_gng_login,
             commands::run_sync,
             commands::apply_profile_to_pack,
             commands::import_plugin_lines,

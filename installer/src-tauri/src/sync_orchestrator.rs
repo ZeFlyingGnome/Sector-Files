@@ -17,6 +17,7 @@ fn emit(app: &AppHandle, step: &str) {
 
 pub async fn run_sync(
     app: &AppHandle,
+    package_paths: Vec<PathBuf>,
     selected_firs: Vec<FirCode>,
     also_apply_profile: Option<bool>,
 ) -> anyhow::Result<SyncSummary> {
@@ -34,17 +35,23 @@ pub async fn run_sync(
         .await
         .context("failed to download GitHub repo")?;
 
-    emit(app, "Downloading GNG packages");
-    let gng_pkgs =
-        crate::gng::packages::download_packages(app, &profile.gng, &selected_firs).await?;
-    let gng_roots: Vec<PathBuf> = gng_pkgs.iter().map(|p| p.root().to_path_buf()).collect();
+    emit(app, "Extracting selected packages");
+    let mut packages = Vec::with_capacity(package_paths.len());
+    for path in &package_paths {
+        packages.push(
+            crate::local_packages::extract_package(path)
+                .with_context(|| format!("extracting {}", path.display()))?,
+        );
+    }
+    let pack_roots: Vec<PathBuf> = packages.iter().map(|p| p.root().to_path_buf()).collect();
 
     emit(app, "Planning file operations");
     let plan_result = plan(PlanInputs {
         github_root: Some(github_repo.root()),
-        gng_roots: &gng_roots,
+        gng_roots: &pack_roots,
         install_root: &install_root,
         github_short_sha: github_short_sha.clone(),
+        selected_firs: &selected_firs,
     })?;
 
     emit(app, "Applying changes");

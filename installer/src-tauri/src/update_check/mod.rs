@@ -46,18 +46,12 @@ async fn check_github(profile: &Profile) -> CheckStatus {
     }
 }
 
-async fn check_airac(profile: &Profile) -> CheckStatus {
-    // The GNG endpoint that exposes the latest AIRAC cycle is not yet known
-    // (task 5.4 / 7.3). For now, return Unknown unless we have a session AND
-    // can hit an as-yet-undefined endpoint. Once the URL is known, swap in
-    // the real implementation.
-    if profile.gng.cookies.is_empty() {
-        return CheckStatus::Unknown {
-            reason: "Not signed in to GNG".into(),
-        };
-    }
+async fn check_airac(_profile: &Profile) -> CheckStatus {
+    // AIRAC packages are now selected manually by the user, so there's no
+    // remote "latest cycle" endpoint to compare against. We surface the
+    // currently-installed cycle in the UI instead.
     CheckStatus::Unknown {
-        reason: "AIRAC discovery not yet implemented (see gng/README.md §2)".into(),
+        reason: "AIRAC packages are selected manually".into(),
     }
 }
 

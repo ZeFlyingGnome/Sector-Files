@@ -9,8 +9,6 @@ pub struct Profile {
     #[serde(default)]
     pub vatsim: VatsimCredentials,
     #[serde(default)]
-    pub gng: GngSession,
-    #[serde(default)]
     pub versions: InstalledVersions,
     #[serde(default)]
     pub preferences: Preferences,
@@ -40,30 +38,6 @@ impl Default for VatsimCredentials {
             enable_rpc: true,
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct GngSession {
-    #[serde(default)]
-    pub cookies: Vec<GngCookie>,
-    #[serde(default)]
-    pub username: Option<String>,
-    #[serde(default)]
-    pub captured_at: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GngCookie {
-    pub name: String,
-    pub value: String,
-    pub domain: String,
-    pub path: String,
-    #[serde(default)]
-    pub expires_at: Option<String>,
-    #[serde(default)]
-    pub secure: bool,
-    #[serde(default)]
-    pub http_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

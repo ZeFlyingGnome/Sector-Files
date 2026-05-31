@@ -2,7 +2,6 @@ use controller_pack_core::FirCode;
 use crate::profile_store::{self, Profile};
 use crate::update_check::{CheckUpdatesReport, InstallerUpdateReport};
 use controller_pack_core::pack_sync::SyncSummary;
-use crate::gng::GngStatus;
 use serde::Deserialize;
 use std::path::PathBuf;
 use tauri::AppHandle;
@@ -11,7 +10,6 @@ use tauri::AppHandle;
 pub struct ProfilePatch {
     pub controller_pack_dir: Option<Option<PathBuf>>,
     pub vatsim: Option<profile_store::VatsimCredentials>,
-    pub gng: Option<profile_store::GngSession>,
     pub versions: Option<profile_store::InstalledVersions>,
     pub preferences: Option<profile_store::Preferences>,
 }
@@ -29,9 +27,6 @@ pub fn update_profile(app: AppHandle, patch: ProfilePatch) -> Result<Profile, St
     }
     if let Some(vatsim) = patch.vatsim {
         profile.vatsim = vatsim;
-    }
-    if let Some(gng) = patch.gng {
-        profile.gng = gng;
     }
     if let Some(versions) = patch.versions {
         profile.versions = versions;
@@ -54,22 +49,13 @@ pub fn looks_like_controller_pack(path: PathBuf) -> bool {
 }
 
 #[tauri::command]
-pub async fn gng_status(app: AppHandle) -> Result<GngStatus, String> {
-    crate::gng::status(&app).await.map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn open_gng_login(app: AppHandle) -> Result<(), String> {
-    crate::gng::open_login_window(&app).await.map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 pub async fn run_sync(
     app: AppHandle,
+    package_paths: Vec<PathBuf>,
     selected_firs: Vec<FirCode>,
     also_apply_profile: Option<bool>,
 ) -> Result<SyncSummary, String> {
-    crate::sync_orchestrator::run_sync(&app, selected_firs, also_apply_profile)
+    crate::sync_orchestrator::run_sync(&app, package_paths, selected_firs, also_apply_profile)
         .await
         .map_err(|e| e.to_string())
 }

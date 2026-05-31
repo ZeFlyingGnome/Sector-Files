@@ -3,7 +3,7 @@
 //! `tauri-plugin-store` load/save and the controller-pack-detection helper.
 
 pub use controller_pack_core::profile_types::{
-    GngCookie, GngSession, InstalledVersions, Preferences, Profile, VatsimCredentials,
+    InstalledVersions, Preferences, Profile, VatsimCredentials,
 };
 use controller_pack_core::FirCode;
 use std::path::{Path, PathBuf};

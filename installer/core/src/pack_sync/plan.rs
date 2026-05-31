@@ -74,6 +74,19 @@ pub struct PlanInputs<'a> {
     pub gng_roots: &'a [PathBuf],
     pub install_root: &'a Path,
     pub github_short_sha: Option<String>,
+    /// FIRs the user wants installed. Top-level folders for any FIR *not* in
+    /// this list are skipped by the GitHub overlay and removed from the
+    /// install root. `LFXX` (the shared base) is always kept.
+    pub selected_firs: &'a [FirCode],
+}
+
+/// The first path segment parsed as a FIR code, if it is one. `LFXX` and other
+/// non-FIR roots return `None`.
+fn top_level_fir(rel: &Path) -> Option<FirCode> {
+    rel.components()
+        .next()
+        .and_then(|c| c.as_os_str().to_str())
+        .and_then(|s| s.parse::<FirCode>().ok())
 }
 
 pub fn plan(inputs: PlanInputs<'_>) -> anyhow::Result<SyncPlan> {
@@ -84,9 +97,26 @@ pub fn plan(inputs: PlanInputs<'_>) -> anyhow::Result<SyncPlan> {
     };
     let gng_set = gng_owned_set();
 
-    // 1) Plan GitHub-source operations (overlay), skipping GNG-owned paths.
+    // 0) Remove top-level folders for FIRs the user did not select.
+    for fir in FirCode::ALL {
+        if !inputs.selected_firs.contains(&fir) {
+            let dir = inputs.install_root.join(fir.as_str());
+            if dir.is_dir() {
+                plan.ops.push(FileOp::DeleteLegacy { path: dir });
+            }
+        }
+    }
+
+    // 1) Plan GitHub-source operations (overlay), skipping GNG-owned paths and
+    //    any unselected FIR's folder.
     if let Some(github_root) = inputs.github_root {
-        plan_github_overlay(github_root, inputs.install_root, &gng_set, &mut plan);
+        plan_github_overlay(
+            github_root,
+            inputs.install_root,
+            &gng_set,
+            inputs.selected_firs,
+            &mut plan,
+        );
     }
 
     // 2) Plan GNG-source operations across all extracted packages. Sector
@@ -173,6 +203,7 @@ fn plan_github_overlay(
     github_root: &Path,
     install_root: &Path,
     gng_set: &globset::GlobSet,
+    selected_firs: &[FirCode],
     plan: &mut SyncPlan,
 ) {
     for entry in WalkDir::new(github_root).into_iter().filter_map(Result::ok) {
@@ -183,6 +214,13 @@ fn plan_github_overlay(
             Ok(p) => p.to_path_buf(),
             Err(_) => continue,
         };
+
+        // Skip files belonging to a FIR the user did not select.
+        if let Some(fir) = top_level_fir(&rel) {
+            if !selected_firs.contains(&fir) {
+                continue;
+            }
+        }
 
         // Skip duplicate copyright files at non-FIR locations; handled
         // separately for the per-FIR rule below.
