@@ -56,10 +56,12 @@ fn parse_airac_cycle(name: &str) -> Option<String> {
         .map(|m| cycle_from_six_digits(m.as_str()))
 }
 
-/// If `name` starts with a known combined code followed by a separator, the FIRs
-/// it covers. Mirrors [`leading_fir_code`]'s prefix+separator matching so that
-/// e.g. `LFXXNX` does not match.
-fn leading_combined_code(name: &str) -> Option<&'static [FirCode]> {
+/// If `name` starts with a known combined code followed by a separator (or is
+/// exactly the code), the FIRs it covers. Mirrors [`leading_fir_code`]'s
+/// prefix+separator matching so that e.g. `LFXXNX` does not match. Accepts both
+/// the GNG sector filename (`LFXXN-Paris-Reims_…`) and the bare package folder
+/// segment (`LFXXN`).
+pub fn leading_combined_code(name: &str) -> Option<&'static [FirCode]> {
     const COMBINED: &[(&str, &[FirCode])] =
         &[(LFXXN_CODE, &[FirCode::LFFF, FirCode::LFEE])];
     let upper = name.to_ascii_uppercase();
