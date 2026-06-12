@@ -82,7 +82,9 @@ fn build_fake_gng_package() -> (TempDir, PathBuf) {
 /// The GNG combined "North" package: a single sector file (plus `.ese`/`.rwy`)
 /// named with the `LFXXN` combined code that must fan out to BOTH LFFF and LFEE.
 /// Uses the real GNG filename shape, with an `_`-prefixed creation timestamp
-/// before the `-260501-` AIRAC group.
+/// before the `-260501-` AIRAC group. It also ships ICAO/NavData and the one
+/// package-owned Settings file (VoiceChannels) under an `LFXXN/` folder, which
+/// must likewise fan out to both covered FIRs.
 fn build_fake_lfxxn_package() -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().to_path_buf();
@@ -90,6 +92,9 @@ fn build_fake_lfxxn_package() -> (TempDir, PathBuf) {
     write_file(&root, "LFXXN-Paris-Reims_20260605153747-260501-0001.sct", "north sct\n");
     write_file(&root, "LFXXN-Paris-Reims_20260605153747-260501-0001.ese", "north ese\n");
     write_file(&root, "LFXXN-Paris-Reims_20260605153747-260501-0001.rwy", "north rwy\n");
+    write_file(&root, "LFXXN/ICAO/airports.txt", "north airports\n");
+    write_file(&root, "LFXXN/NavData/airways.txt", "north navdata\n");
+    write_file(&root, "LFXXN/Settings/VoiceChannels.txt", "north voice\n");
 
     (tmp, root)
 }
@@ -375,6 +380,36 @@ fn lfxxn_package_fans_out_to_lfff_and_lfee() {
             fs::read_to_string(install_root.join(format!("LFXX/Sectors/{fir}.{ext}"))).unwrap();
         assert_eq!(body.trim(), content, "LFXX/Sectors/{fir}.{ext}");
     }
+
+    // ICAO/NavData/VoiceChannels from the combined LFXXN folder fan out to BOTH
+    // covered FIRs, exactly like the sectors.
+    for fir in ["LFFF", "LFEE"] {
+        let icao =
+            fs::read_to_string(install_root.join(format!("{fir}/ICAO/airports.txt"))).unwrap();
+        assert_eq!(icao.trim(), "north airports", "{fir}/ICAO");
+        let nav =
+            fs::read_to_string(install_root.join(format!("{fir}/NavData/airways.txt"))).unwrap();
+        assert_eq!(nav.trim(), "north navdata", "{fir}/NavData");
+        // VoiceChannels lands in each FIR's own Settings folder.
+        let voice =
+            fs::read_to_string(install_root.join(format!("{fir}/Settings/VoiceChannels.txt")))
+                .unwrap();
+        assert_eq!(voice.trim(), "north voice", "{fir}/Settings/VoiceChannels.txt");
+    }
+    // ICAO/NavData are ALSO mirrored into LFXX (CoFrance reads them there)...
+    assert_eq!(
+        fs::read_to_string(install_root.join("LFXX/ICAO/airports.txt")).unwrap().trim(),
+        "north airports"
+    );
+    assert_eq!(
+        fs::read_to_string(install_root.join("LFXX/NavData/airways.txt")).unwrap().trim(),
+        "north navdata"
+    );
+    // ...but VoiceChannels is NOT mirrored into LFXX.
+    assert!(
+        !files.contains(&"LFXX/Settings/VoiceChannels.txt".to_string()),
+        "VoiceChannels must not be mirrored into LFXX; got: {files:#?}"
+    );
 
     // AIRAC parsed past the `_`-prefixed timestamp → 2605.
     let marker = fs::read_to_string(install_root.join("LFXX/Sectors/current_airac.txt")).unwrap();

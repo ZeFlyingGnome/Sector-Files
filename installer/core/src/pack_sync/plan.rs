@@ -1,4 +1,4 @@
-use super::airac::{parse_gng_sector_target, LFXXN_CODE};
+use super::airac::{leading_combined_code, parse_gng_sector_target, LFXXN_CODE};
 use super::ownership::{gng_owned_set, is_gng_owned};
 use super::{COPYRIGHT_FILE, CURRENT_AIRAC_FILE, SECTORS_SUBPATH, SECTOR_BACKUP_DIRNAME};
 use crate::fir::FirCode;
@@ -445,52 +445,74 @@ fn plan_gng_overlay(
         }
 
         // Everything else from the package is taken ONLY when it is an ICAO or
-        // NavData file (under a FIR or LFXX) — those are the paths in the
-        // GNG-owned list. `.prf`, `.rwy`, settings, plugins, copyright, etc. are
-        // GitHub-provided and intentionally ignored here.
-        if let Some(rel) = locate_inside_fir_or_lfxx(gng_root, path) {
-            let gng_set = gng_owned_set();
-            if is_gng_owned(&gng_set, &rel) {
+        // NavData file, or a `Settings/VoiceChannels.txt` (under a FIR, LFXX, or
+        // a combined code that fans out to several FIRs) — those are the paths in
+        // the GNG-owned list. `.prf`, `.rwy`, other settings, plugins, copyright,
+        // etc. are GitHub-provided and intentionally ignored here.
+        let gng_set = gng_owned_set();
+        for rel in locate_inside_fir_or_lfxx(gng_root, path) {
+            if !is_gng_owned(&gng_set, &rel) {
+                continue;
+            }
+            plan.ops.push(FileOp::Copy {
+                src: path.to_path_buf(),
+                dst: install_root.join(&rel),
+            });
+            // CoFrance reads ICAO/NavData from LFXX, so mirror a FIR's copy
+            // there as well.
+            if let Some(lffx_rel) = mirror_navdata_to_lfxx(&rel) {
                 plan.ops.push(FileOp::Copy {
                     src: path.to_path_buf(),
-                    dst: install_root.join(&rel),
+                    dst: install_root.join(lffx_rel),
                 });
-                // CoFrance reads ICAO/NavData from LFXX, so mirror a FIR's copy
-                // there as well.
-                if let Some(lffx_rel) = mirror_navdata_to_lfxx(&rel) {
-                    plan.ops.push(FileOp::Copy {
-                        src: path.to_path_buf(),
-                        dst: install_root.join(lffx_rel),
-                    });
-                }
             }
         }
     }
 }
 
-/// Returns the destination-relative path for a GNG file, anchored at the
-/// first FIR/LFXX segment encountered in the package. Returns `None` if no
-/// such segment exists.
-fn locate_inside_fir_or_lfxx(gng_root: &Path, path: &Path) -> Option<PathBuf> {
-    let rel = path.strip_prefix(gng_root).ok()?;
+/// Returns the destination-relative path(s) for a GNG file, anchored at the
+/// first FIR / LFXX / combined-code segment encountered in the package.
+///
+/// Most files yield a single destination. A combined `LFXXN` segment fans the
+/// file out to BOTH covered FIRs (LFFF + LFEE) — the same way the combined
+/// sector file is written once per FIR — so its `ICAO`/`NavData` and
+/// `Settings/VoiceChannels.txt` land under each FIR folder. Returns an empty
+/// vec when no anchor segment exists.
+fn locate_inside_fir_or_lfxx(gng_root: &Path, path: &Path) -> Vec<PathBuf> {
+    let Ok(rel) = path.strip_prefix(gng_root) else {
+        return Vec::new();
+    };
     let parts: Vec<_> = rel.iter().collect();
     for (idx, part) in parts.iter().enumerate() {
-        let s = part.to_string_lossy();
-        let upper = s.to_ascii_uppercase();
+        let segment = part.to_string_lossy();
+        let upper = segment.to_ascii_uppercase();
+
         if upper == "LFXX" || FirCode::ALL.iter().any(|fir| fir.as_str() == upper.as_str()) {
             let tail: PathBuf = parts[idx..].iter().collect();
-            return Some(tail);
+            return vec![tail];
         }
+
+        // Combined northern package (e.g. LFXXN): its ICAO/NavData/VoiceChannels
+        // serve both covered FIRs, so fan the tail out under each FIR folder —
+        // mirroring how the combined sector file is written once per FIR.
+        if let Some(firs) = leading_combined_code(&segment) {
+            let tail: PathBuf = parts[idx + 1..].iter().collect();
+            return firs
+                .iter()
+                .map(|fir| Path::new(fir.as_str()).join(&tail))
+                .collect();
+        }
+
         if upper == "LFFM" {
             // Legacy: rewrite LFFM into LFXX.
             let mut p = PathBuf::from("LFXX");
             for tail_part in &parts[idx + 1..] {
                 p.push(tail_part);
             }
-            return Some(p);
+            return vec![p];
         }
     }
-    None
+    Vec::new()
 }
 
 fn plan_sector_backups(
