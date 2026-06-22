@@ -222,7 +222,7 @@
 .rrl Which level would you like for cruise today?
 .rrlf Vous souhaitez quel niveau aujourd'hui ?
 .rd Report ready for descend.
-.rdf Rappelez prêt à descendre
+.rdfr Rappelez prêt à descendre
 .tod Report top of descent.
 .todf Rappelez top of descent.
 .rl Report level.
