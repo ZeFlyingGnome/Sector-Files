@@ -812,6 +812,7 @@ Free Text:LFPG Terminaux\Pavillon:freetext
 Free Text:LFPG Terminaux\S3:freetext
 Free Text:LFPG Terminaux\S4:freetext
 Geo:LFPG Groundlayout AVISO:
+Geo:LFPG Groundlayout AVISO Gates:
 Regions:LFPG AVISO:polygon
 SHOWC:1
 SHOWSB:0
