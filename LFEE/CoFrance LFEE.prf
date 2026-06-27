@@ -23,22 +23,22 @@ Plugins	Plugin5Display0	SMR radar display
 Plugins	Plugin5Display1	Standard ES radar screen
 ASRFastKeys	1	\ASR\Reims UIR.asr
 ASRFastKeys	2	\ASR\Reims - Legacy APP.asr
-ASRFastKeys	3	\ASR\AVISOs\Bale AVISO.asr
-ASRFastKeys	4	\ASR\AVISOs\Strasbourg AVISO.asr
-ASRFastKeys	5	\ASR\AVISOs\Colmar AVISO.asr
-ASRFastKeys	6	\ASR\AVISOs\Dole AVISO.asr
-ASRFastKeys	7	\ASR\AVISOs\Lorraine AVISO.asr
-ASRFastKeys	8	\ASR\AVISOs\Nancy AVISO.asr
-ASRFastKeys	9	\ASR\AVISOs\Epinal AVISO.asr
+ASRFastKeys	3	\ASR\AVISOs\LFSB Bale AVISO.asr
+ASRFastKeys	4	\ASR\AVISOs\LFST Strasbourg AVISO.asr
+ASRFastKeys	5	\ASR\AVISOs\LFGA Colmar AVISO.asr
+ASRFastKeys	6	\ASR\AVISOs\LFGJ Dole AVISO.asr
+ASRFastKeys	7	\ASR\AVISOs\LFJL Lorraine AVISO.asr
+ASRFastKeys	8	\ASR\AVISOs\LFSN Nancy AVISO.asr
+ASRFastKeys	9	\ASR\AVISOs\LFSG Epinal AVISO.asr
 RecentFiles	Recent1	\ASR\Reims UIR.asr
 RecentFiles	Recent2	\ASR\Reims - Legacy APP.asr
-RecentFiles	Recent3	\ASR\AVISOs\Bale AVISO.asr
-RecentFiles	Recent4	\ASR\AVISOs\Strasbourg AVISO.asr
-RecentFiles	Recent5	\ASR\AVISOs\Colmar AVISO.asr
-RecentFiles	Recent6	\ASR\AVISOs\Dole AVISO.asr
-RecentFiles	Recent7	\ASR\AVISOs\Lorraine AVISO.asr
-RecentFiles	Recent8	\ASR\AVISOs\Nancy AVISO.asr
-RecentFiles	Recent9	\ASR\AVISOs\Epinal AVISO.asr
+RecentFiles	Recent3	\ASR\AVISOs\LFSB Bale AVISO.asr
+RecentFiles	Recent4	\ASR\AVISOs\LFST Strasbourg AVISO.asr
+RecentFiles	Recent5	\ASR\AVISOs\LFGA Colmar AVISO.asr
+RecentFiles	Recent6	\ASR\AVISOs\LFGJ Dole AVISO.asr
+RecentFiles	Recent7	\ASR\AVISOs\LFJL Lorraine AVISO.asr
+RecentFiles	Recent8	\ASR\AVISOs\LFSN Nancy AVISO.asr
+RecentFiles	Recent9	\ASR\AVISOs\LFSG Epinal AVISO.asr
 Settings	AselKey	5111808
 Settings	FreqKey	3604480
 Settings	Settingsfile	\..\LFXX\Settings\General.txt
