@@ -28,15 +28,16 @@ Free Text:LFMU Gates\Hangars:freetext
 Free Text:LFMU Gates\Reserve Pelicandrome:freetext
 Free Text:LFMU Gates\SDIS 34:freetext
 Free Text:LFMU Gates\Service Piste:freetext
-Free Text:LFMU Gates\TWR:freetext
 Free Text:LFMU Gates\Terminal:freetext
+Free Text:LFMU Gates\TWR:freetext
 Free Text:LFMU Taxiways\A:freetext
 Free Text:LFMU Taxiways\B:freetext
 Free Text:LFMU Taxiways\P:freetext
 Free Text:LFMU Taxiways\T1:freetext
 Free Text:LFMU Taxiways\T2:freetext
 Free Text:LFMU Taxiways\T3:freetext
-Geo:LFMU Groundlayout Beziers Vias:
+Geo:LFMU Groundlayout AVISO:
+Regions:LFMU AVISO:polygon
 SHOWC:1
 SHOWSB:0
 BELOW:0
@@ -50,7 +51,7 @@ DISABLEPANNING:0
 DISABLEZOOMING:0
 DisplayRotation:0.00000
 TAGFAMILY:CoFrance
-WINDOWAREA:43.315357:3.337311:43.328542:3.371220
+WINDOWAREA:43.315357:3.337088:43.328542:3.371443
 PLUGIN:vSMR:ActiveProfile:Default
 PLUGIN:vSMR:Afterglow:1
 PLUGIN:vSMR:Airport:LFMU
