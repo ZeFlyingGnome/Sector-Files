@@ -4,18 +4,23 @@ DisplayTypeGeoReferenced:1
 SECTORFILE:
 SECTORTITLE:
 Free Text:LFMP Gates\ACB:freetext
-Free Text:LFMP Gates\H:freetext
+Free Text:LFMP Gates\P1-A:freetext
+Free Text:LFMP Gates\P1-B:freetext
 Free Text:LFMP Gates\P2-A:freetext
 Free Text:LFMP Gates\P3-A:freetext
 Free Text:LFMP Gates\P3-B:freetext
 Free Text:LFMP Gates\P4-A:freetext
 Free Text:LFMP Gates\P4-B:freetext
+Free Text:LFMP Gates\P5-A:freetext
+Free Text:LFMP Gates\P5-B:freetext
+Free Text:LFMP Gates\P6-A:freetext
+Free Text:LFMP Gates\P6-B:freetext
 Free Text:LFMP Gates\P7-A:freetext
 Free Text:LFMP Gates\P8-A:freetext
 Free Text:LFMP Gates\P8-B:freetext
-Free Text:LFMP Gates\SAMU:freetext
+Free Text:LFMP Gates\PRKG NORD:freetext
 Free Text:LFMP Gates\Sabena:freetext
-Free Text:LFMP Gates\Terminal:freetext
+Free Text:LFMP Gates\SAMU:freetext
 Free Text:LFMP Taxiways\13:freetext
 Free Text:LFMP Taxiways\15:freetext
 Free Text:LFMP Taxiways\31:freetext
@@ -27,12 +32,21 @@ Free Text:LFMP Taxiways\D:freetext
 Free Text:LFMP Taxiways\G:freetext
 Free Text:LFMP Taxiways\H:freetext
 Free Text:LFMP Taxiways\K:freetext
+Free Text:LFMP Taxiways\K:freetext
+Free Text:LFMP Taxiways\K:freetext
+Free Text:LFMP Taxiways\L:freetext
 Free Text:LFMP Taxiways\L:freetext
 Free Text:LFMP Taxiways\Q:freetext
 Free Text:LFMP Taxiways\R:freetext
 Free Text:LFMP Taxiways\T:freetext
 Free Text:LFMP Taxiways\U:freetext
 Free Text:LFMP Taxiways\V:freetext
+Free Text:LFMP Taxiways\V:freetext
+Free Text:LFMP Taxiways\V:freetext
+Free Text:LFMP Taxiways\X:freetext
+Free Text:LFMP Taxiways\X:freetext
+Free Text:LFMP Taxiways\X:freetext
+Free Text:LFMP Taxiways\X:freetext
 Free Text:LFMP Taxiways\X:freetext
 Geo:LFMP Groundlayout AVISO:
 Regions:LFMP AVISO:polygon
@@ -49,7 +63,7 @@ DISABLEPANNING:0
 DISABLEZOOMING:0
 DisplayRotation:0.00000
 TAGFAMILY:CoFrance
-WINDOWAREA:42.727752:2.829211:42.759942:2.911995
+WINDOWAREA:42.722589:2.823084:42.757710:2.914600
 PLUGIN:vSMR:ActiveProfile:Default
 PLUGIN:vSMR:Afterglow:1
 PLUGIN:vSMR:Airport:LFMP

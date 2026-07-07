@@ -3,7 +3,15 @@ DisplayTypeNeedRadarContent:0
 DisplayTypeGeoReferenced:1
 SECTORFILE:
 SECTORTITLE:
-Geo:LFTZ Groundlayout La Mole:
+Free Text:LFTZ Gates\PRKG AVION:freetext
+Free Text:LFTZ Gates\PRKG HEL HERBE:freetext
+Free Text:LFTZ Gates\PRKG HERBE:freetext
+Free Text:LFTZ Taxiways\06:freetext
+Free Text:LFTZ Taxiways\24:freetext
+Free Text:LFTZ Taxiways\A:freetext
+Free Text:LFTZ Taxiways\B:freetext
+Geo:LFTZ Groundlayout AVISO:
+Regions:LFTZ AVISO:polygon
 SHOWC:1
 SHOWSB:0
 BELOW:0
@@ -17,7 +25,7 @@ DISABLEPANNING:0
 DISABLEZOOMING:0
 DisplayRotation:0.00000
 TAGFAMILY:CoFrance
-WINDOWAREA:43.185159:6.430204:43.225396:6.533684
+WINDOWAREA:43.198685:6.464766:43.211870:6.499122
 PLUGIN:vSMR:ActiveProfile:Default
 PLUGIN:vSMR:Afterglow:1
 PLUGIN:vSMR:Airport:LFTZ

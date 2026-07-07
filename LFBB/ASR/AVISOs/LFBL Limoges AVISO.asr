@@ -6,30 +6,31 @@ SECTORTITLE:
 Free Text:LFBL Gates\1A:freetext
 Free Text:LFBL Gates\1L:freetext
 Free Text:LFBL Gates\1P:freetext
+Free Text:LFBL Gates\1T:freetext
 Free Text:LFBL Gates\2A:freetext
 Free Text:LFBL Gates\2L:freetext
 Free Text:LFBL Gates\2P:freetext
 Free Text:LFBL Gates\3A:freetext
 Free Text:LFBL Gates\3L:freetext
 Free Text:LFBL Gates\3P:freetext
-Free Text:LFBL Gates\4A:freetext
 Free Text:LFBL Gates\4P:freetext
 Free Text:LFBL Gates\5P:freetext
 Free Text:LFBL Gates\ACB:freetext
-Free Text:LFBL Gates\P A:freetext
-Free Text:LFBL Gates\P L:freetext
-Free Text:LFBL Gates\P P:freetext
-Free Text:LFBL Gates\P Vol a Voile:freetext
-Free Text:LFBL Gates\Terminal:freetext
-Free Text:LFBL Gates\TWR:freetext
+Free Text:LFBL Gates\Pelicandrome:freetext
+Free Text:LFBL Taxiways\03:freetext
+Free Text:LFBL Taxiways\21:freetext
 Free Text:LFBL Taxiways\C:freetext
-Free Text:LFBL Taxiways\C1:freetext
-Free Text:LFBL Taxiways\S:freetext
+Free Text:LFBL Taxiways\G:freetext
+Free Text:LFBL Taxiways\G1:freetext
+Free Text:LFBL Taxiways\G2:freetext
+Free Text:LFBL Taxiways\G3:freetext
+Free Text:LFBL Taxiways\H:freetext
+Free Text:LFBL Taxiways\N:freetext
+Free Text:LFBL Taxiways\N1:freetext
 Free Text:LFBL Taxiways\S:freetext
 Free Text:LFBL Taxiways\S1:freetext
-Free Text:LFBL Taxiways\S2:freetext
-Free Text:LFBL Taxiways\S3:freetext
-Geo:LFBL Groundlayout Limoges:
+Geo:LFBL Groundlayout AVISO:
+Regions:LFBL AVISO:polygon
 SHOWC:1
 SHOWSB:0
 BELOW:0
@@ -43,7 +44,7 @@ DISABLEPANNING:0
 DISABLEZOOMING:0
 DisplayRotation:0.00000
 TAGFAMILY:CoFrance
-WINDOWAREA:45.845852:1.138886:45.875814:1.221670
+WINDOWAREA:45.846375:1.141929:45.877405:1.218534
 PLUGIN:vSMR:ActiveProfile:Default
 PLUGIN:vSMR:Afterglow:1
 PLUGIN:vSMR:Airport:LFBL
