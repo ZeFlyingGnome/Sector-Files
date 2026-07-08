@@ -9,11 +9,14 @@ Free Text:LFLX Gates\3:freetext
 Free Text:LFLX Gates\4:freetext
 Free Text:LFLX Gates\5:freetext
 Free Text:LFLX Gates\6:freetext
-Free Text:LFLX Gates\AVT:freetext
-Free Text:LFLX Gates\Hangar:freetext
-Free Text:LFLX Gates\Parking:freetext
-Free Text:LFLX Gates\Terminal:freetext
-Free Text:LFLX Gates\TWR:freetext
+Free Text:LFLX Gates\7:freetext
+Free Text:LFLX Gates\8:freetext
+Free Text:LFLX Gates\X:freetext
+Free Text:LFLX Gates\X:freetext
+Free Text:LFLX Gates\X:freetext
+Free Text:LFLX Gates\X:freetext
+Free Text:LFLX Taxiways\03:freetext
+Free Text:LFLX Taxiways\21:freetext
 Free Text:LFLX Taxiways\B:freetext
 Free Text:LFLX Taxiways\C:freetext
 Free Text:LFLX Taxiways\D:freetext
@@ -23,7 +26,7 @@ Free Text:LFLX Taxiways\G:freetext
 Free Text:LFLX Taxiways\T2:freetext
 Free Text:LFLX Taxiways\T3:freetext
 Free Text:LFLX Taxiways\T4:freetext
-Geo:LFLX Groundlayout Chateauroux Deols:
+Regions:LFLX AVISO:polygon
 SHOWC:1
 SHOWSB:0
 BELOW:0
@@ -37,7 +40,7 @@ DISABLEPANNING:0
 DISABLEZOOMING:0
 DisplayRotation:0.00000
 TAGFAMILY:CoFrance
-WINDOWAREA:46.843812:1.680082:46.881265:1.783562
+WINDOWAREA:46.841240:1.672261:46.884718:1.779599
 PLUGIN:vSMR:ActiveProfile:Default
 PLUGIN:vSMR:Afterglow:1
 PLUGIN:vSMR:Airport:LFLX

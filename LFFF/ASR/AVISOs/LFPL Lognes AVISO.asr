@@ -3,21 +3,32 @@ DisplayTypeNeedRadarContent:0
 DisplayTypeGeoReferenced:1
 SECTORFILE:
 SECTORTITLE:
-Free Text:LFAT Gates\13:freetext
-Free Text:LFAT Gates\31:freetext
-Free Text:LFAT Gates\T1:freetext
-Free Text:LFAT Gates\T2:freetext
-Free Text:LFAT Gates\T3:freetext
-Free Text:LFAT Gates\T3:freetext
-Free Text:LFAT Gates\P1:freetext
-Free Text:LFAT Gates\P2:freetext
-Free Text:LFAT Gates\X:freetext
-Free Text:LFAT Gates\X:freetext
-Free Text:LFAT Gates\X:freetext
-Free Text:LFAT Gates\X:freetext
-Free Text:LFAT Gates\X:freetext
-Geo:LFAT Groundlayout AVISO:
-Regions:LFAT AVISO:polygon
+Free Text:LFPL Gates\1:freetext
+Free Text:LFPL Gates\2:freetext
+Free Text:LFPL Gates\3:freetext
+Free Text:LFPL Gates\4:freetext
+Free Text:LFPL Gates\PRKG:freetext
+Free Text:LFPL Taxiways\08:freetext
+Free Text:LFPL Taxiways\08R:freetext
+Free Text:LFPL Taxiways\26:freetext
+Free Text:LFPL Taxiways\26L:freetext
+Free Text:LFPL Taxiways\N:freetext
+Free Text:LFPL Taxiways\N1:freetext
+Free Text:LFPL Taxiways\N2:freetext
+Free Text:LFPL Taxiways\N3:freetext
+Free Text:LFPL Taxiways\N4:freetext
+Free Text:LFPL Taxiways\S:freetext
+Free Text:LFPL Taxiways\S1:freetext
+Free Text:LFPL Taxiways\S2:freetext
+Free Text:LFPL Taxiways\S3:freetext
+Free Text:LFPL Taxiways\S4:freetext
+Free Text:LFPL Taxiways\S5:freetext
+Free Text:LFPL Taxiways\S6:freetext
+Free Text:LFPL Taxiways\T1:freetext
+Free Text:LFPL Taxiways\T2:freetext
+Free Text:LFPL Taxiways\V:freetext
+Free Text:LFPL Taxiways\W:freetext
+Regions:LFPL AVISO:polygon
 SHOWC:1
 SHOWSB:0
 BELOW:0
@@ -31,10 +42,10 @@ DISABLEPANNING:0
 DISABLEZOOMING:0
 DisplayRotation:0.00000
 TAGFAMILY:CoFrance
-WINDOWAREA:50.499442:1.568961:50.536975:1.673728
+WINDOWAREA:48.817328:2.613774:48.825319:2.636712
 PLUGIN:vSMR:ActiveProfile:Default
 PLUGIN:vSMR:Afterglow:1
-PLUGIN:vSMR:Airport:LFAT
+PLUGIN:vSMR:Airport:LFPL
 PLUGIN:vSMR:AppTrailsDots:4
 PLUGIN:vSMR:FontSize:1
 PLUGIN:vSMR:GndTrailsDots:4

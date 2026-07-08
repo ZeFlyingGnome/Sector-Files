@@ -3,7 +3,32 @@ DisplayTypeNeedRadarContent:0
 DisplayTypeGeoReferenced:1
 SECTORFILE:
 SECTORTITLE:
-Geo:LFPV Groundlayout Villacoublay Velizy A.B:
+Free Text:LFPV Gates\PRKG A:freetext
+Free Text:LFPV Gates\PRKG B:freetext
+Free Text:LFPV Gates\PRKG C:freetext
+Free Text:LFPV Gates\PRKG D:freetext
+Free Text:LFPV Gates\PRKG E:freetext
+Free Text:LFPV Gates\HEL:freetext
+Free Text:LFPV Gates\HEL:freetext
+Free Text:LFPV Taxiways\09:freetext
+Free Text:LFPV Taxiways\27:freetext
+Free Text:LFPV Taxiways\A:freetext
+Free Text:LFPV Taxiways\A:freetext
+Free Text:LFPV Taxiways\B:freetext
+Free Text:LFPV Taxiways\C:freetext
+Free Text:LFPV Taxiways\D:freetext
+Free Text:LFPV Taxiways\E:freetext
+Free Text:LFPV Taxiways\E:freetext
+Free Text:LFPV Taxiways\F:freetext
+Free Text:LFPV Taxiways\G:freetext
+Free Text:LFPV Taxiways\H1:freetext
+Free Text:LFPV Taxiways\X:freetext
+Free Text:LFPV Taxiways\X:freetext
+Free Text:LFPV Taxiways\X:freetext
+Free Text:LFPV Taxiways\X:freetext
+Free Text:LFPV Taxiways\X:freetext
+Geo:LFPV Groundlayout AVISO:
+Regions:LFPV AVISO:polygon
 SHOWC:1
 SHOWSB:0
 BELOW:0
@@ -12,12 +37,12 @@ LEADER:5
 SHOWLEADER:0
 TURNLEADER:0
 HISTORY_DOTS:0
-SIMULATION_MODE:4
+SIMULATION_MODE:1
 DISABLEPANNING:0
 DISABLEZOOMING:0
 DisplayRotation:0.00000
 TAGFAMILY:CoFrance
-WINDOWAREA:48.759186:2.148742:48.789148:2.234036
+WINDOWAREA:48.761186:2.174178:48.780693:2.230177
 PLUGIN:vSMR:ActiveProfile:Default
 PLUGIN:vSMR:Afterglow:1
 PLUGIN:vSMR:Airport:LFPV
@@ -25,16 +50,16 @@ PLUGIN:vSMR:AppTrailsDots:4
 PLUGIN:vSMR:FontSize:1
 PLUGIN:vSMR:GndTrailsDots:4
 PLUGIN:vSMR:PredictedLine:0
-PLUGIN:vSMR:SRW1BottomRightX:418
-PLUGIN:vSMR:SRW1BottomRightY:1135
+PLUGIN:vSMR:SRW1BottomRightX:518
+PLUGIN:vSMR:SRW1BottomRightY:966
 PLUGIN:vSMR:SRW1Display:1
 PLUGIN:vSMR:SRW1Filter:5500
-PLUGIN:vSMR:SRW1OffsetX:8
-PLUGIN:vSMR:SRW1OffsetY:-8
+PLUGIN:vSMR:SRW1OffsetX:0
+PLUGIN:vSMR:SRW1OffsetY:0
 PLUGIN:vSMR:SRW1Rotation:0
 PLUGIN:vSMR:SRW1Scale:15
-PLUGIN:vSMR:SRW1TopLeftX:11
-PLUGIN:vSMR:SRW1TopLeftY:793
+PLUGIN:vSMR:SRW1TopLeftX:118
+PLUGIN:vSMR:SRW1TopLeftY:666
 PLUGIN:vSMR:SRW2BottomRightX:600
 PLUGIN:vSMR:SRW2BottomRightY:500
 PLUGIN:vSMR:SRW2Display:0
