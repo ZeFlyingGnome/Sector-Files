@@ -49,6 +49,7 @@ Free Text:LFOK Taxiways\M:freetext
 Free Text:LFOK Taxiways\E:freetext
 Free Text:LFOK Taxiways\EA:freetext
 Free Text:LFOK Taxiways\EB:freetext
+Free Text:LFOK Taxiways\W:freetext
 Geo:LFOK Groundlayout AVISO:
 Regions:LFOK AVISO:polygon
 SHOWC:1
