@@ -50,7 +50,7 @@
     },
     {
       "name": "vSMR",
-      "current": "1.0.7",
+      "current": "1.0.9",
       "github": "AlexisBalzano/vSMR",
       "include_prereleases": false
     }
