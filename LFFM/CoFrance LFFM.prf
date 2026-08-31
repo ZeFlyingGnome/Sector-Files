@@ -1,6 +1,6 @@
 Plugins	Plugin0	\Plugins\CoFrance\CoFranceLoader.dll
 Plugins	Plugin1	\Plugins\RDF Plugin\RDFPlugin.dll
-Plugins	Plugin2	\Plugins\CCAMS\CCAMS.dll
+Plugins	Plugin2	\Plugins\Central Squawk\CEntralSquawk.dll
 Plugins	Plugin3	\Plugins\VCH\VCH.dll
 Plugins	Plugin4	\Plugins\vSMR\vSMR.dll
 Plugins	Plugin5	\Plugins\ESTimers\ESTimers.dll
