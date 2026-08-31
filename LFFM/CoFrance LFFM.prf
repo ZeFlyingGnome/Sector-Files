@@ -7,6 +7,7 @@ Plugins	Plugin5	\Plugins\ESTimers\ESTimers.dll
 Plugins	Plugin6	\Plugins\vACDM\vACDM.dll
 Plugins	Plugin7	\Plugins\RampAgent\RampAgent.dll
 Plugins	Plugin8	\Plugins\EuroscopeRPC\EuroscopeRPC.dll
+Plugins	Plugin9	\Plugins\Plugin Bridge\EuroScopeBridge.dll
 Plugins	Plugin0Display0	CoFrance radar display
 Plugins	Plugin0Display1	Standard ES radar screen
 Plugins	Plugin0Display2	SMR radar display
