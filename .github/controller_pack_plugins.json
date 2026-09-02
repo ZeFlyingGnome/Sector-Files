@@ -8,7 +8,7 @@
     },
     {
       "name": "PluginBridge",
-      "current": "1.0.0",
+      "current": "2.0.0",
       "github": "AlexisBalzano/Euroscope-Plugin-Bridge",
       "include_prereleases": false
     },
