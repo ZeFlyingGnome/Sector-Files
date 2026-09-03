@@ -38,8 +38,8 @@
     },
     {
       "name": "VATCAN Booking Plugin",
-      "current": "1.1.11",
-      "github": "VATSIMCanada/Slots-Plugin",
+      "current": "1.1.12",
+      "github": "AlexisBalzano/Slots-Plugin",
       "include_prereleases": false
     },
     {
