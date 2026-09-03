@@ -26,7 +26,7 @@
     },
     {
       "name": "RampAgent",
-      "current": "2.0.1",
+      "current": "2.0.3",
       "github": "AlexisBalzano/EuroscopeRampAgent",
       "include_prereleases": false
     },
@@ -50,7 +50,7 @@
     },
     {
       "name": "vSMR",
-      "current": "1.0.9",
+      "current": "1.1.1",
       "github": "AlexisBalzano/vSMR",
       "include_prereleases": false
     }
