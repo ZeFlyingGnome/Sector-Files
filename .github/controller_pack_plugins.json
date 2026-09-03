@@ -1,9 +1,9 @@
 {
   "plugins": [
     {
-      "name": "CCAMS",
-      "current": "2.5.3",
-      "github": "kusterjs/CCAMS",
+      "name": "Central Squawk",
+      "current": "1.0.1",
+      "github": "AlexisBalzano/CentralSquawk",
       "include_prereleases": false
     },
     {
