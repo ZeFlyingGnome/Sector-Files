@@ -45,7 +45,7 @@ m_Column:ETX:7:1:53:0:0:1::::1:0.0
 m_Column:SI:5:1:64:20:0:1::::1:0.0
 END
 DEP
-m_Visible:0
+m_Visible:1
 m_X:0
 m_Y:104
 m_LineNumber:0d
